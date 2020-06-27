@@ -35,7 +35,7 @@ function pcr.internal.characterstate(character, hp, tp, pos, skillid, skilldata,
         skillid = skillid, --int, 0 is no skill (simulation system will initialize the next skill in next frame)
         skilldata = skilldata, --skill-defined value (usually a table)
         skilllist = skilllist, -- a list of skills (index) that would start after the current one
-        bufflist = bufflist, --not supported yet
+        bufflist = bufflist, --not supported yet (TODO need to have a separate clone logic!)
         clone = function(s)
             return pcr.internal.characterstate(s.character, s.hp, s.tp, s.pos, s.skillid, s.skilldata, s.bufflist);
         end
@@ -144,7 +144,7 @@ pcr.test = {}
 --implementation of idle skill
 
 function pcr.test.testidleskill_move(battle, character)
-    character.pos = character.pos + character.team.direction * 7.5
+    character.pos = character.pos + character.team.direction * 12 --note this is the speed at starting. normally it's 7.5
 end
 
 function pcr.test.testidleskill(idletime, attackrange)
@@ -165,7 +165,7 @@ function pcr.test.testidleskill(idletime, attackrange)
             if nearestdist < 0 or dd < nearestdist then nearestdist = dd end
         end
 
-        if nearestdist > attackrange + 125 then
+        if nearestdist >= attackrange + 100 then
             --need to move
             --TODO Lima can stand within enemies
             --how will this affect move direction?
@@ -227,6 +227,22 @@ function pcr.test.battlestate()
             pcr.test.characterstate(tamaki, 1080 + 200 * 2),
             pcr.test.characterstate(suzuna, 1080 + 200 * 3),
             pcr.test.characterstate(maho,   1080 + 200 * 4),
+        })
+end
+
+function pcr.test.battlestate2()
+    return pcr.internal.battlestate(0,
+        {
+            pcr.test.characterstate(kuka,   -760 - 200 * 0),
+            pcr.test.characterstate(jun,    -760 - 200 * 1),
+            pcr.test.characterstate(nozomi, -760 - 200 * 2),
+            pcr.test.characterstate(tamaki, -760 - 200 * 3),
+        },
+        {
+            pcr.test.characterstate(nozomi, 560 + 200 * 0),
+            pcr.test.characterstate(tamaki, 560 + 200 * 1),
+            pcr.test.characterstate(suzuna, 560 + 200 * 2),
+            pcr.test.characterstate(maho,   560 + 200 * 3),
         })
 end
 
