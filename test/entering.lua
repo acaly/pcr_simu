@@ -50,7 +50,7 @@ local function printinfo(frame)
 		print(
 			team .. "\t" .. 
 			width(character.character.name, 10) .. "\t" .. 
-			character.pos .. "\t+" .. 
+			character.pos .. "\t-" .. 
 			getremaining(character) - minremaining)
 	end
 
@@ -131,11 +131,13 @@ local function teamtime(frame)
 end
 
 local function check(desc, r)
+	if _G.failurecount == nil then _G.failurecount = 0 end
+	if _G.successcount == nil then _G.successcount = 0 end
 	if not r then
 		print("FAIL:" .. desc)
-
-		if _G.failcount == nil then _G.failcount = 0 end
-		_G.failcount = _G.failcount + 1
+		_G.failurecount = _G.failurecount + 1
+	else
+		_G.successcount = _G.successcount + 1
 	end
 end
 
@@ -170,17 +172,42 @@ do
 end
 print()
 
+print("test 1 additional: yukari + saren_summer vs karyl")
+do
+	local f = simulate({ "karyl" }, { "lima", "yukari", "saren_summer" })
+	
+	local team = teamtime(f)
+	check("yukari vs saren", team.team2.saren_summer - team.team2.yukari == 2)
+end
+
+--TODO the new algorithm gives error in this test, because it effectively extends both distances by 12
+--frame count differences between characters are consistent with experiment
+--TODO add frame diff
 print("test 2: rino vs kyouka")
 print("==========")
 do
 	local f = simulate({ "lima", "yukari", "mitsuki", "rino", "yuki" },
 		{ "nozomi", "makoto", "tamaki", "maho", "kyouka" })
-	check("rino attacking", math.abs(findinteam(f.state.team1, "rino").pos - findinteam(f.state.team2, "kyouka").pos) > 1250)
+	check("rino attacking", math.abs(findinteam(f.state.team1, "rino").pos - findinteam(f.state.team2, "kyouka").pos) > 1150 + 100)
+
+	local team = teamtime(f)
+	check("yukari time", team.team1.yukari == 0)
+	check("mitsuki time", team.team1.mitsuki == 1)
+	check("rino time", team.team1.rino == 4)
+	check("yuki time", team.team1.yuki == 8)
+	check("kyouka time", team.team2.kyouka == 31)
 end
 do
 	local f = simulate({ "nozomi", "makoto", "tamaki", "maho", "kyouka" },
 		{ "lima", "yukari", "mitsuki", "rino", "yuki" })
-	check("rino defending", math.abs(findinteam(f.state.team2, "rino").pos - findinteam(f.state.team1, "kyouka").pos) < 1250)
+	check("rino defending", math.abs(findinteam(f.state.team2, "rino").pos - findinteam(f.state.team1, "kyouka").pos) < 1150 + 100)
+
+	local team = teamtime(f)
+	check("yukari time", team.team2.yukari == 0)
+	check("mitsuki time", team.team2.mitsuki == 2)
+	check("rino time", team.team2.rino == 5)
+	check("yuki time", team.team2.yuki == 9)
+	check("kyouka time", team.team1.kyouka == 33)
 end
 print()
 
@@ -189,16 +216,29 @@ print("==========")
 do
 	local f = simulate({ "kuuka", "jun" }, { "nozomi" })
 	check("vs nozomi", findinteam(f.state.team1, "kuuka").pos < findinteam(f.state.team1, "jun").pos)
+
+	local team = teamtime(f)
+	check("nozomi time", team.team2.nozomi == 0)
+	check("kuuka time", team.team1.kuuka == 2)
+	check("jun time", team.team1.jun == 19)
 end
 do
 	local f = simulate({ "kuuka", "jun" }, { "miyako" })
 	check("vs miyako", findinteam(f.state.team1, "kuuka").pos > findinteam(f.state.team1, "jun").pos)
-	--TODO confirm this
+
+	local team = teamtime(f)
+	check("miyako time", team.team2.miyako == 0)
+	check("kuuka time", team.team1.kuuka == 0)
+	check("jun time", team.team1.jun == 15)
 end
 do
 	local f = simulate({ "kuuka", "jun" }, { "lima_only" })
 	check("vs miyako", findinteam(f.state.team1, "kuuka").pos > findinteam(f.state.team1, "jun").pos)
-	--TODO confirm this
+
+	local team = teamtime(f)
+	check("lima time", team.team2.lima == 0)
+	check("kuuka time", team.team1.kuuka == 0)
+	check("jun time", team.team1.jun == 15)
 end
 print()
 
@@ -216,4 +256,4 @@ do
 end
 print()
 
-print("" .. (failcount or 0) .. " error(s)")
+print("" .. (successcount or 0) .. " successes, " .. (failurecount or 0) .. " failures")

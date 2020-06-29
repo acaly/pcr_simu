@@ -288,33 +288,6 @@ function core.common.idleskill(idletime, attackrange, velocity, checkonce)
 		else
 			return {
 				{
-				--[[
-					--old method, inconsistent with experiment in kuuka+jun vs miyako
-					action = function(battle1, character1)
-						--TODO Lima can stand within enemies
-						--how will this affect move direction?
-						character1.pos = character1.pos + character1.team.direction * velocity
-
-						--second stop check
-						--here we consider the movement of the target
-						local newdist = nearestdist - velocity
-
-						--there are examples that the other team see this character in stopped state if
-						--the distance after movement (without considering target) is enough
-						if newdist < attackrange + 100 then
-							character1.skilldata.movement = 0
-						end
-
-						newdist = newdist - core.common.utils.getcharactermovement(nearestenemy)
-
-						--TODO < or <=
-						if newdist < attackrange + 100 then
-							--set to stop but don't modify movement
-							character1.skilldata.firststop = true
-						end
-					end
-				]]
-					--new algorithm: confirming rino vs kyouka (the only problem)
 					action = function(battle1, character1)
 						--TODO Lima can stand within enemies
 						--how will this affect move direction?
