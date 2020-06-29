@@ -1,10 +1,13 @@
-local pcr = {}
+local core = {}
 
-pcr.internal = {}
+core.internal = {}
 
 --[[
 	character table:
 		name: string, for display only
+		subname: string or nil, for display only
+		id: string, used internally to identify different characters in a same team
+			within one team id must be unique
 		initskill: a function returning a list of skill index filled initially
 		loopskill: a function returning a list of skill index after the initskill
 		skills: a list of skill table
@@ -24,12 +27,12 @@ pcr.internal = {}
 		maybe other fields
 ]]
 
-pcr.internal.teams = {
+core.internal.teams = {
 	{ ally = "team1", enemy = "team2", direction = 1 },
 	{ ally = "team2", enemy = "team1", direction = -1 },
 }
 
-function pcr.internal.cloneskillidlist(list)
+function core.internal.cloneskillidlist(list)
 	if list == nil then return nil end
 	local ret = {}
 	for index, val in next, list do
@@ -38,19 +41,19 @@ function pcr.internal.cloneskillidlist(list)
 	return ret
 end
 
-function pcr.internal.cloneskilldata(data)
+function core.internal.cloneskilldata(data)
 	--simply copy each field
 	--we may need more complicated method later (deep copy)
-	return pcr.internal.cloneskillidlist(data)
+	return core.internal.cloneskillidlist(data)
 end
 
-function pcr.internal.clonebufflist(data)
+function core.internal.clonebufflist(data)
 	--simply copy each field
 	--we may need more complicated method later (deep copy)
-	return pcr.internal.cloneskillidlist(data)
+	return core.internal.cloneskillidlist(data)
 end
 
-function pcr.internal.characterstate(character, hp, tp, pos, skillid, skilldata, skilllist, bufflist)
+function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata, skilllist, bufflist)
 	return {
 		character = character, --table
 		hp = hp, --int
@@ -59,23 +62,23 @@ function pcr.internal.characterstate(character, hp, tp, pos, skillid, skilldata,
 		skillid = skillid, --int, 0 is no skill (simulation system will initialize the next skill in next frame)
 		skilldata = skilldata, --skill-defined value (usually a table)
 		skilllist = skilllist, -- a list of skills (index) that would start after the current one
-		bufflist = bufflist, --not supported yet (TODO need to have a separate clone logic!)
+		bufflist = bufflist, --not supported yet
 		--TODO other parameters (atk, def, etc.)
 
 		--do not write team (we don't know)
 		--it's handled by battle state instead
 
 		clone = function(s)
-			return pcr.internal.characterstate(s.character,
+			return core.internal.characterstate(s.character,
 				s.hp, s.tp, s.pos, s.skillid,
-				pcr.internal.cloneskilldata(s.skilldata),
-				pcr.internal.cloneskillidlist(s.skilllist),
-				pcr.internal.clonebufflist(s.bufflist))
+				core.internal.cloneskilldata(s.skilldata),
+				core.internal.cloneskillidlist(s.skilllist),
+				core.internal.clonebufflist(s.bufflist))
 		end
 	}
 end
 
-function pcr.internal.cloneteam(team)
+function core.internal.cloneteam(team)
 	local newteam = {}
 	for index, ch in next, team do
 		newteam[index] = ch:clone()
@@ -83,13 +86,13 @@ function pcr.internal.cloneteam(team)
 	return newteam
 end
 
-function pcr.internal.battlestate(time, team1, team2)
+function core.internal.battlestate(time, team1, team2)
 	--set labels to help find allies/enemies
-	for index, ch in next, team1 do
-		ch.team = pcr.internal.teams[1]
+	for _, ch in next, team1 do
+		ch.team = core.internal.teams[1]
 	end
-	for index, ch in next, team2 do
-		ch.team = pcr.internal.teams[2]
+	for _, ch in next, team2 do
+		ch.team = core.internal.teams[2]
 	end
 
 	return {
@@ -97,27 +100,28 @@ function pcr.internal.battlestate(time, team1, team2)
 		team1 = team1, --a list of characters
 		team2 = team2, --a list of characters
 		clone = function(s)
-			return pcr.internal.battlestate(s.time,
-				pcr.internal.cloneteam(s.team1), pcr.internal.cloneteam(s.team2))
+			return core.internal.battlestate(s.time,
+				core.internal.cloneteam(s.team1), core.internal.cloneteam(s.team2))
 		end
 	}
 end
 
-function pcr.internal.frame(parent, options, state, eventlist)
+function core.internal.frame(parent, options, state, eventlist)
 	return {
 		parent = parent, --another frame table
 		options = options, --not supported yet
 		state = state, --battle state table
-		eventlist = eventlist, --a list of events (function that applied to the last battle state)
+		eventlist = eventlist, --a list of events (containing function applied to the last battle state)
 	}
 end
 
-pcr.simulation = {}
+core.simulation = {}
 
-function pcr.simulation.firstframe(s)
+function core.simulation.firstframe(s)
 	--sort characters
 	table.sort(s.team1, function(ch1, ch2) return ch1.character.order > ch2.character.order end) --big to small
 	table.sort(s.team2, function(ch1, ch2) return ch1.character.order < ch2.character.order end) --small to big
+	--TODO need confirmation: according to Xier, team1 should also sort from small to big
 
 	--set initial position
 	for index, ch in next, s.team1 do
@@ -128,19 +132,19 @@ function pcr.simulation.firstframe(s)
 	end
 
 	--set initial skills
-	for index, ch in next, s.team1 do
+	for _, ch in next, s.team1 do
 		ch.skillid = 0
 		ch.skilllist = ch.character.initskill()
 	end
-	for index, ch in next, s.team2 do
+	for _, ch in next, s.team2 do
 		ch.skillid = 0
 		ch.skilllist = ch.character.initskill()
 	end
 
-	return pcr.internal.frame(nil, nil, s, {})
+	return core.internal.frame(nil, nil, s, {})
 end
 
-function pcr.simulation.makeevents(s) --TODO need options parameter
+function core.simulation.makeevents(s) --TODO need options parameter
 	local updatecharacter = function(character, battle)
 		if character.skillid == 0 then
 			--start next skill
@@ -165,9 +169,9 @@ function pcr.simulation.makeevents(s) --TODO need options parameter
 		end
 
 		--get a list of events and merge them to results
-		for index, character in next, team do
+		for _, character in next, team do
 			local newresults = updatecharacter(character, battle)
-			for index, newevent in next, newresults do
+			for _, newevent in next, newresults do
 				newevent.action(battle, character) --execute immediately
 				table.insert(results, newevent)
 			end
@@ -182,30 +186,30 @@ function pcr.simulation.makeevents(s) --TODO need options parameter
 	return r
 end
 
-function pcr.simulation.next(frame, options)
+function core.simulation.next(frame, options)
 	local nextstate = frame.state:clone()
 	nextstate.time = nextstate.time + 1
-	local events = pcr.simulation.makeevents(nextstate)
-	return pcr.internal.frame(frame, options, nextstate, events)
+	local events = core.simulation.makeevents(nextstate)
+	return core.internal.frame(frame, options, nextstate, events)
 end
 
-function pcr.simulation.run(frame, options, count)
+function core.simulation.run(frame, options, count)
 	local result = frame
 	for i = 1, count do
-		result = pcr.simulation.next(result, options)
+		result = core.simulation.next(result, options)
 	end
 	return result
 end
 
 --common script
 
-pcr.common = {}
-pcr.common.utils = {}
+core.common = {}
+core.common.utils = {}
 
-function pcr.common.utils.findnearest(character, team)
+function core.common.utils.findnearest(character, team)
 	local nearestenemy = nil
 	local nearestdist = -1
-	for index, enemy in next, team do
+	for _, enemy in next, team do
 		local dd = math.abs(enemy.pos - character.pos)
 		if nearestdist < 0 or dd < nearestdist then
 			nearestdist = dd
@@ -215,7 +219,7 @@ function pcr.common.utils.findnearest(character, team)
 	return nearestenemy, nearestdist
 end
 
-function pcr.common.utils.getcharactermovement(character)
+function core.common.utils.getcharactermovement(character)
 	--a tricky way (only idle skill can be considered moving)
 	if character.skillid ~= 0 and
 			character.character.skills[character.skillid].idle then
@@ -226,7 +230,7 @@ end
 
 --implementation of empty skill (doing nothing, for testing only)
 
-function pcr.common.emptyskill(totaltime)
+function core.common.emptyskill(totaltime)
 	return function(battle, character)
 		--init skill data
 		if character.skilldata == nil then
@@ -248,7 +252,7 @@ end
 
 --implementation of idle skill (also used when starting the battle)
 
-function pcr.common.idleskill(idletime, attackrange, velocity, checkonce)
+function core.common.idleskill(idletime, attackrange, velocity, checkonce)
 	return function(battle, character)
 		--init skill data
 		if character.skilldata == nil then
@@ -261,10 +265,10 @@ function pcr.common.idleskill(idletime, attackrange, velocity, checkonce)
 
 		--determine whether we move (and set movement variable)
 		local shouldcheck = not character.skilldata.firststop or not checkonce
-		local nearestenemy, nearestdist = pcr.common.utils.findnearest(character, battle[character.team.enemy])
+		local nearestenemy, nearestdist = core.common.utils.findnearest(character, battle[character.team.enemy])
 		character.skilldata.movement = 0
 		if shouldcheck then
-			--TODO > or >= ?
+			--TODO > or >=
 			--TODO parameterize 100
 			if nearestdist >= attackrange + 100 then
 				character.skilldata.movement = velocity
@@ -284,6 +288,8 @@ function pcr.common.idleskill(idletime, attackrange, velocity, checkonce)
 		else
 			return {
 				{
+				--[[
+					--old method, inconsistent with experiment in kuuka+jun vs miyako
 					action = function(battle1, character1)
 						--TODO Lima can stand within enemies
 						--how will this affect move direction?
@@ -292,7 +298,31 @@ function pcr.common.idleskill(idletime, attackrange, velocity, checkonce)
 						--second stop check
 						--here we consider the movement of the target
 						local newdist = nearestdist - velocity
-						newdist = newdist - pcr.common.utils.getcharactermovement(nearestenemy)
+
+						--there are examples that the other team see this character in stopped state if
+						--the distance after movement (without considering target) is enough
+						if newdist < attackrange + 100 then
+							character1.skilldata.movement = 0
+						end
+
+						newdist = newdist - core.common.utils.getcharactermovement(nearestenemy)
+
+						--TODO < or <=
+						if newdist < attackrange + 100 then
+							--set to stop but don't modify movement
+							character1.skilldata.firststop = true
+						end
+					end
+				]]
+					--new algorithm: confirming rino vs kyouka (the only problem)
+					action = function(battle1, character1)
+						--TODO Lima can stand within enemies
+						--how will this affect move direction?
+						character1.pos = character1.pos + character1.team.direction * velocity
+
+						--second stop check
+						--here we consider the movement of the target
+						local newdist = nearestdist - velocity * 2
 
 						--TODO < or <=
 						if newdist < attackrange + 100 then
@@ -306,89 +336,4 @@ function pcr.common.idleskill(idletime, attackrange, velocity, checkonce)
 	end
 end
 
-pcr.test = {}
-
---a simple test
-
-function pcr.test.makeemptycharacter(name, attackrange)
-	return {
-		name = name,
-		skills = {
-			[1] = {
-				name = "idle",
-				idle = true,
-				action = pcr.common.idleskill(1, attackrange, 12, true), --idle for 1 frame TODO get the actual number
-			},
-			[2] = {
-				name = "empty",
-				idle = false,
-				action = pcr.common.emptyskill(60 * 90), --90 seconds
-			}
-		},
-		initskill = function() return { 1 } end,
-		loopskill = function() return { 2 } end,
-		order = attackrange,
-	}
-end
-
-function pcr.test.makeemptycharacter_lima(name, attackrange)
-	return {
-		name = name,
-		skills = {
-			[1] = {
-				name = "empty",
-				idle = false,
-				action = pcr.common.emptyskill(60 * 90), --90 seconds
-			}
-		},
-		initskill = function() return { 1 } end,
-		loopskill = function() return { 1 } end,
-		order = attackrange,
-	}
-end
-
-pcr.test.emptycharacters = {}
-
-pcr.test.emptycharacters.miyako = pcr.test.makeemptycharacter("miyako", 125)
-pcr.test.emptycharacters.kuuka = pcr.test.makeemptycharacter("kuuka", 130)
-pcr.test.emptycharacters.jun = pcr.test.makeemptycharacter("jun", 135)
-pcr.test.emptycharacters.nozomi = pcr.test.makeemptycharacter("nozomi", 160)
-pcr.test.emptycharacters.tamaki = pcr.test.makeemptycharacter("tamaki", 215)
-pcr.test.emptycharacters.makoto = pcr.test.makeemptycharacter("makoto", 165)
-pcr.test.emptycharacters.suzuna = pcr.test.makeemptycharacter("suzuna", 705)
-pcr.test.emptycharacters.maho = pcr.test.makeemptycharacter("maho", 795)
-
-pcr.test.emptycharacters.yukari = pcr.test.makeemptycharacter("yukari", 405)
-pcr.test.emptycharacters.saren_summer = pcr.test.makeemptycharacter("saren", 585)
-pcr.test.emptycharacters.mitsuki = pcr.test.makeemptycharacter("mitsuki", 565)
-pcr.test.emptycharacters.rino = pcr.test.makeemptycharacter("rino", 700)
-
-pcr.test.emptycharacters.peko = pcr.test.makeemptycharacter("peko", 155)
-pcr.test.emptycharacters.lima_only = pcr.test.makeemptycharacter("lima", 105)
-pcr.test.emptycharacters.lima = pcr.test.makeemptycharacter_lima("lima", 105)
-
-pcr.test.emptycharacters.kokkoro_spring = pcr.test.makeemptycharacter("kokkoro", 159)
-pcr.test.emptycharacters.yuki = pcr.test.makeemptycharacter("yuki", 805)
-pcr.test.emptycharacters.kyouka = pcr.test.makeemptycharacter("kyouka", 810)
-
-pcr.test.emptycharacters.miyako_halloween = pcr.test.makeemptycharacter("miyako", 590)
-
-function pcr.test.characterstate(character)
-	return pcr.internal.characterstate(character, 10000, 0, 0, 0, nil, {}, {})
-end
-
-function pcr.test.makefirstframe(team1characters, team2characters)
-	local team1 = {}
-	for index, ch in next, team1characters do
-		table.insert(team1, pcr.test.characterstate(ch))
-	end
-
-	local team2 = {}
-	for index, ch in next, team2characters do
-		table.insert(team2, pcr.test.characterstate(ch))
-	end
-
-	return pcr.simulation.firstframe(pcr.internal.battlestate(0, team1, team2))
-end
-
-return pcr
+return core

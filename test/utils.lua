@@ -1,4 +1,4 @@
-local printpos = {}
+local utils = {}
 
 local width = function(str, w)
 	local ret = str
@@ -17,7 +17,7 @@ local getremaining = function(ch)
 	return ret
 end
 
-function printpos.print(frame)
+function utils.print(frame)
 	print("Ally")
 	for index, character in next, frame.state.team1 do
 		print("  " .. width(character.character.name, 10) .. "\t" .. character.pos .. "\t" .. getremaining(character))
@@ -28,4 +28,4 @@ function printpos.print(frame)
 	end
 end
 
-return printpos
+return utils
