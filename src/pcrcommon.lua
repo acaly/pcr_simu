@@ -18,7 +18,7 @@ function common.makeemptycharacter(name, attackrange, subname)
 			[1] = {
 				name = "idle",
 				idle = true,
-				action = core.common.idleskill(1, attackrange, 12, true), --idle for 1 frame TODO get the actual number
+				action = core.common.idleskill(1, attackrange, 12, true),
 			},
 			[2] = {
 				name = "empty",
