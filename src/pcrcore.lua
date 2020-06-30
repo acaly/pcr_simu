@@ -65,15 +65,20 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		bufflist = bufflist, --not supported yet
 		--TODO other parameters (atk, def, etc.)
 
+		--fields that are not initialized:
+		--readytime
+
 		--do not write team (we don't know)
 		--it's handled by battle state instead
 
 		clone = function(s)
-			return core.internal.characterstate(s.character,
+			local ret = core.internal.characterstate(s.character,
 				s.hp, s.tp, s.pos, s.skillid,
 				core.internal.cloneskilldata(s.skilldata),
 				core.internal.cloneskillidlist(s.skilllist),
 				core.internal.clonebufflist(s.bufflist))
+			ret.readytime = s.readytime
+			return ret
 		end
 	}
 end
@@ -96,13 +101,34 @@ function core.internal.battlestate(time, team1, team2)
 	end
 
 	return {
-		time = time, --int, frame index starting from 0
+		time = time, --int, frame index starting from 0, pvp timer starts (changing from 1:30 to 1:29) at time = 60
 		team1 = team1, --a list of characters
 		team2 = team2, --a list of characters
 		clone = function(s)
 			return core.internal.battlestate(s.time,
 				core.internal.cloneteam(s.team1), core.internal.cloneteam(s.team2))
-		end
+		end,
+		clocktime = function(state, format)
+			if format == nil then format = "m:s" end
+			local m, s, ss, f
+			if state.time < 60 then
+				m = 1
+				s = 30
+				ss = 90
+				f = 0
+			else
+				local actualframe = state.time - 60
+				local xss = math.floor(actualframe / 60)
+				f = actualframe - xss * 60
+				ss = 89 - xss
+
+				m = math.floor(ss / 60)
+				s = ss - m * 60
+			end
+			local ret = format:gsub("m", m):gsub("ss", ss):gsub("s", s):gsub("f", f)
+			return ret
+		end,
+		--TODO find player in team by id
 	}
 end
 
@@ -158,7 +184,7 @@ function core.simulation.makeevents(s) --TODO need options parameter
 		return skill.action(battle, character) --call skill action function
 	end
 	local updateteam = function(team, battle, results)
-		--remove dead characters (TODO is it before or after? 2 teams together or separate?)
+		--remove dead characters (TODO is it before or after? 2 teams together or separate? or maybe as soon as damage is applied?)
 		local i = 1
 		while i <= #team do
 			if team[i].hp == 0 then
@@ -276,6 +302,7 @@ function core.common.idleskill(idletime, attackrange, velocity, checkonce)
 				--there are 2 places we set first stop, and this is the first
 				--the other is in event action function
 				character.skilldata.firststop = true
+				character.readytime = battle.time
 			end
 		end
 
@@ -301,6 +328,7 @@ function core.common.idleskill(idletime, attackrange, velocity, checkonce)
 						if newdist < attackrange + 100 then
 							--set to stop but don't modify movement
 							character1.skilldata.firststop = true
+							character.readytime = battle.time
 						end
 					end
 				}
