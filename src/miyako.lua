@@ -1,12 +1,9 @@
-local pcr =
-{
-	core = require("pcrcore"),
-	common = require("pcrcommon"),
-}
+local common = require("pcrcommon")
+
 local miyako = {}
 
 local function create(skill1level)
-	local attackrange = 125
+	local attackrange = 125 --TODO move attackrange to character table
 	return {
 		name = "miyako",
 		subname = nil,
@@ -15,38 +12,37 @@ local function create(skill1level)
 			[1] = {
 				name = "enter",
 				idle = true,
-				--46 frames before waiting for the first move
-				action = pcr.core.common.idleskill(46, attackrange, 12, true),
+				action = common.idleskill(45, attackrange, 12, true),
 			},
 			[2] = {
 				name = "wait_attack",
 				idle = true,
-				action = pcr.core.common.idleskill(105, attackrange, 12, false), --TODO speed is 7.5?
+				action = common.waitskill(105, attackrange),
 			},
 			[3] = {
 				name = "attack",
 				idle = false,
-				action = pcr.core.common.emptyskill(91),
+				action = common.emptyskill(91),
 			},
 			[4] = {
 				name = "wait_skill1",
 				idle = true,
-				action = pcr.core.common.idleskill(3, attackrange, 12, false), --TODO speed is 7.5?
+				action = common.waitskill(3, attackrange),
 			},
 			[5] = {
 				name = "skill1",
 				idle = false,
-				action = pcr.core.common.emptyskill(56 + 180 + math.floor(skill1level * 0.01 * 60)), --level 154
+				action = common.emptyskill(56 + 180 + math.floor(skill1level * 0.01 * 60)), --level 154
 			},
 			[6] = {
 				name = "wait_skill2",
 				idle = true,
-				action = pcr.core.common.idleskill(19, attackrange, 12, false), --TODO speed is 7.5?
+				action = common.waitskill(19, attackrange),
 			},
 			[7] = {
 				name = "skill2",
 				idle = false,
-				action = pcr.core.common.emptyskill(187),
+				action = common.emptyskill(187),
 			},
 		},
 		initskill = function() return { 1, 2, 3, 2, 3, 4, 5, 2, 3, 6, 7 } end,

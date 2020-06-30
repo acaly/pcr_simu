@@ -7,20 +7,26 @@ local pcr =
 	utils = require("pcrutils"),
 }
 
-function pcr.utils.makecharacterstate(name)
-	if type(name) == "table" then
-		return pcr.core.internal.characterstate(name, 10000, 0, 0, 0, nil, {}, {})
+function pcr.utils.makecharacterstate(character)
+	if type(character) == "table" then
+		return pcr.core.internal.characterstate(character, 10000, 0, 0, 0, nil, {}, {})
 	end
-	if pcr.common.emptycharacters[name] == nil then
-		print("unknown character name ".. name)
+	if pcr.common.emptycharacters[character] == nil then
+		print("unknown character name ".. character)
 	end
-	return pcr.core.internal.characterstate(pcr.common.emptycharacters[name], 10000, 0, 0, 0, nil, {}, {})
+	return pcr.core.internal.characterstate(pcr.common.emptycharacters[character], 10000, 0, 0, 0, nil, {}, {})
 end
 
-function pcr.utils.maketeam(names)
+function pcr.utils.maketeam(characters)
 	local t = {}
-	for x in string.gmatch(names, "[^,]+") do
-		table.insert(t, pcr.utils.makecharacterstate(x))
+	if type(characters) == "string" then
+		for x in string.gmatch(characters, "[^,]+") do
+			table.insert(t, pcr.utils.makecharacterstate(x))
+		end
+	elseif type(characters) == "table" then
+		for _, x in next, characters do
+			table.insert(t, x)
+		end
 	end
 	return t
 end
