@@ -2,6 +2,10 @@ local common = require("pcrcommon")
 
 local makoto = {}
 
+--TODO
+--wait time (before skills) should -1 or -2 (129/115/69 -> 128/114/68 or 127/113/67)
+--can't decide by acceleration
+--need to confirm with auto UB
 local function create()
 	local attackrange = 165 --TODO move attackrange to character table
 	return {
@@ -12,37 +16,37 @@ local function create()
 			[1] = {
 				name = "enter",
 				idle = true,
-				action = common.idleskill(36, attackrange, 12, true),
+				action = common.idleskill(37, attackrange, 12, true),
 			},
 			[2] = {
 				name = "wait_attack",
 				idle = true,
-				action = common.waitskill(129, attackrange),
+				action = common.waitskill(128, attackrange),
 			},
 			[3] = {
 				name = "attack",
 				idle = false,
-				action = common.emptyskill(68),
+				action = common.emptyskill(69),
 			},
 			[4] = {
 				name = "wait_skill1+",
 				idle = true,
-				action = common.waitskill(69, attackrange),
+				action = common.waitskill(68, attackrange),
 			},
 			[5] = {
 				name = "skill1+",
 				idle = false,
-				action = common.emptyskill(120),
+				action = common.emptyskill(121),
 			},
 			[6] = {
 				name = "wait_skill2",
 				idle = true,
-				action = common.waitskill(115, attackrange),
+				action = common.waitskill(114, attackrange),
 			},
 			[7] = {
 				name = "skill2",
 				idle = false,
-				action = common.emptyskill(74),
+				action = common.emptyskill(75),
 			},
 		},
 		initskill = function() return { 1, 6, 7, 4, 5 } end,
