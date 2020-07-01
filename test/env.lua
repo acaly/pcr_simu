@@ -25,7 +25,7 @@ function pcr.utils.maketeam(characters)
 		end
 	elseif type(characters) == "table" then
 		for _, x in next, characters do
-			table.insert(t, x)
+			table.insert(t, pcr.utils.makecharacterstate(x))
 		end
 	end
 	return t

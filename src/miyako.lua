@@ -12,7 +12,7 @@ local function create(skill1level)
 			[1] = {
 				name = "enter",
 				idle = true,
-				action = common.idleskill(45, attackrange, 12, true),
+				action = common.idleskill(46, attackrange, 12, true),
 			},
 			[2] = {
 				name = "wait_attack",
@@ -25,14 +25,14 @@ local function create(skill1level)
 				action = common.emptyskill(91),
 			},
 			[4] = {
-				name = "wait_skill1",
+				name = "wait_skill1+",
 				idle = true,
 				action = common.waitskill(3, attackrange),
 			},
 			[5] = {
-				name = "skill1",
+				name = "skill1+",
 				idle = false,
-				action = common.emptyskill(56 + 180 + math.floor(skill1level * 0.01 * 60)), --level 154
+				action = common.emptyskill(56 + 180 + math.floor(skill1level * 0.01 * 60)),
 			},
 			[6] = {
 				name = "wait_skill2",

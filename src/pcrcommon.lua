@@ -58,13 +58,23 @@ function common.idleskill(idletime, attackrange, velocity, checkonce)
 				remaining = idletime,
 				firststop = false,
 				movement = 0, --will be properly set later
+				--TODO currently this movement variable is never read outside the function
+				--maybe we should remove it
 			}
 		end
 
-		--determine whether we move (and set movement variable)
+		--determine whether we should move (and set movement variable)
+
 		local shouldcheck = not character.skilldata.firststop or not checkonce
 		local nearestenemy, nearestdist = common.utils.findnearest(character, battle[character.team.enemy])
 		character.skilldata.movement = 0
+
+		--temporary fix: prevent move when checkonce is true
+		--TODO need to allow checking
+		if not checkonce then
+			shouldcheck = false
+		end
+
 		if shouldcheck then
 			--TODO > or >=
 			--TODO parameterize 100
@@ -74,7 +84,7 @@ function common.idleskill(idletime, attackrange, velocity, checkonce)
 				--there are 2 places we set first stop, and this is the first
 				--the other is in event action function
 				character.skilldata.firststop = true
-				character.readytime = battle.time
+				character.readytime = character.readytime or battle.time
 			end
 		end
 
@@ -100,7 +110,7 @@ function common.idleskill(idletime, attackrange, velocity, checkonce)
 						if newdist < attackrange + 100 then
 							--set to stop but don't modify movement
 							character1.skilldata.firststop = true
-							character.readytime = battle.time
+							character.readytime = character.readytime or battle.time
 						end
 					end
 				}
@@ -184,6 +194,7 @@ common.emptycharacters =
 	tsumugi = common.makeemptycharacter("tsumugi", 195),
 	misogi = common.makeemptycharacter("misogi", 205),
 	tamaki = common.makeemptycharacter("tamaki", 215),
+	eriko = common.makeemptycharacter("eriko", 230),
 	djeeta = common.makeemptycharacter("djeeta", 245),
 	yukari = common.makeemptycharacter("yukari", 405),
 	nino = common.makeemptycharacter("nino", 415),
