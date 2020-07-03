@@ -4,6 +4,7 @@ local common = {}
 
 common.utils = {}
 
+--TODO need to check what will happen when 2 enemies have same position
 function common.utils.findnearest(character, team)
 	local nearestenemy = nil
 	local nearestdist = -1
@@ -19,6 +20,7 @@ end
 
 function common.utils.anyenemyinrange(character, battle, totaldistance)
 	for _, ee in next, battle[character.team.enemy] do
+		--TODO parameterize 100
 		if math.abs(ee.pos - character.pos) < totaldistance + 100 then
 			return true
 		end
@@ -155,9 +157,9 @@ function common.makeemptycharacter(name, attackrange, subname)
 
 		skills = {
 			[1] = {
-				name = "idle",
+				name = "enter",
 				idle = true,
-				action = common.idleskill(1, 12, true),
+				action = common.enterskill(),
 			},
 			[2] = {
 				name = "empty",
