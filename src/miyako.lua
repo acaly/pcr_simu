@@ -3,21 +3,24 @@ local common = require("pcrcommon")
 local miyako = {}
 
 local function create(skill1level)
-	local attackrange = 125 --TODO move attackrange to character table
 	return {
 		name = "miyako",
 		subname = nil,
 		id = "miyako",
+
+		attackrange = 125,
+		order = 125,
+		
 		skills = {
 			[1] = {
 				name = "enter",
 				idle = true,
-				action = common.idleskill(48, attackrange, 12, true),
+				action = common.idleskill(48, 12, true),
 			},
 			[2] = {
 				name = "wait_attack",
 				idle = true,
-				action = common.waitskill(103, attackrange),
+				action = common.waitskill(103),
 			},
 			[3] = {
 				name = "attack",
@@ -27,7 +30,7 @@ local function create(skill1level)
 			[4] = {
 				name = "wait_skill1+",
 				idle = true,
-				action = common.waitskill(1, attackrange),
+				action = common.waitskill(1),
 			},
 			[5] = {
 				name = "skill1+",
@@ -37,7 +40,7 @@ local function create(skill1level)
 			[6] = {
 				name = "wait_skill2",
 				idle = true,
-				action = common.waitskill(17, attackrange),
+				action = common.waitskill(17),
 			},
 			[7] = {
 				name = "skill2",
@@ -47,7 +50,6 @@ local function create(skill1level)
 		},
 		initskill = function() return { 1, 2, 3, 2, 3, 4, 5, 2, 3, 6, 7 } end,
 		loopskill = function() return { 2, 3, 2, 3, 4, 5, 6, 7 } end,
-		order = attackrange,
 	}
 end
 

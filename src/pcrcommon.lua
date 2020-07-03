@@ -50,7 +50,7 @@ end
 
 --implementation of idle skill (also used when starting the battle)
 
-function common.idleskill(idletime, attackrange, velocity, checkonce)
+function common.idleskill(idletime, velocity, checkonce)
 	return function(battle, character)
 		--init skill data
 		if character.skilldata == nil then
@@ -78,7 +78,7 @@ function common.idleskill(idletime, attackrange, velocity, checkonce)
 		if shouldcheck then
 			--TODO > or >=
 			--TODO parameterize 100
-			if nearestdist >= attackrange + 100 then
+			if nearestdist >= character.character.attackrange + 100 then
 				character.skilldata.movement = velocity
 			else
 				--there are 2 places we set first stop, and this is the first
@@ -107,7 +107,7 @@ function common.idleskill(idletime, attackrange, velocity, checkonce)
 						local newdist = nearestdist - velocity * 2
 
 						--TODO < or <=
-						if newdist < attackrange + 100 then
+						if newdist < character.character.attackrange + 100 then
 							--set to stop but don't modify movement
 							character1.skilldata.firststop = true
 							character.readytime = character.readytime or battle.time
@@ -119,8 +119,8 @@ function common.idleskill(idletime, attackrange, velocity, checkonce)
 	end
 end
 
-function common.waitskill(totaltime, attackrange)
-	return common.idleskill(totaltime, attackrange, 12, false) --TODO velocity is 7.5?
+function common.waitskill(totaltime)
+	return common.idleskill(totaltime, 12, false) --TODO velocity is 7.5?
 end
 
 --empty characters
@@ -138,11 +138,15 @@ function common.makeemptycharacter(name, attackrange, subname)
 		name = name,
 		subname = subname,
 		id = common.concatname(name, subname),
+
+		attackrange = attackrange,
+		order = attackrange,
+
 		skills = {
 			[1] = {
 				name = "idle",
 				idle = true,
-				action = common.idleskill(1, attackrange, 12, true),
+				action = common.idleskill(1, 12, true),
 			},
 			[2] = {
 				name = "empty",
@@ -152,7 +156,6 @@ function common.makeemptycharacter(name, attackrange, subname)
 		},
 		initskill = function() return { 1 } end,
 		loopskill = function() return { 2 } end,
-		order = attackrange,
 	}
 end
 
@@ -161,6 +164,10 @@ function common.makeemptycharacter_lima(name, attackrange, subname)
 		name = name,
 		subname = subname,
 		id = common.concatname(name, subname),
+
+		attackrange = attackrange,
+		order = attackrange,
+
 		skills = {
 			[1] = {
 				name = "wait",
@@ -175,7 +182,6 @@ function common.makeemptycharacter_lima(name, attackrange, subname)
 		},
 		initskill = function() return { 1 } end,
 		loopskill = function() return { 2 } end,
-		order = attackrange,
 	}
 end
 
@@ -211,7 +217,7 @@ common.emptycharacters =
 	hatsune = common.makeemptycharacter("hatsune", 755),
 	misaki = common.makeemptycharacter("misaki", 760),
 	maho = common.makeemptycharacter("maho", 795),
-	chika_christmas = common.makeemptycharacter("chika", 77, "christmas"),
+	chika_christmas = common.makeemptycharacter("chika", 770, "christmas"),
 	yuki = common.makeemptycharacter("yuki", 805),
 	kyouka = common.makeemptycharacter("kyouka", 810),
 }
