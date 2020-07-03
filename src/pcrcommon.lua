@@ -17,13 +17,13 @@ function common.utils.findnearest(character, team)
 	return nearestenemy, nearestdist
 end
 
-function common.utils.getcharactermovement(character)
-	--a tricky way (only idle skill can be considered moving)
-	if character.skillid ~= 0 and
-			character.character.skills[character.skillid].idle then
-		return character.skilldata.movement
+function common.utils.anyenemyinrange(character, battle, totaldistance)
+	for _, ee in next, battle[character.team.enemy] do
+		if math.abs(ee.pos - character.pos) < totaldistance + 100 then
+			return true
+		end
 	end
-	return 0
+	return false
 end
 
 --implementation of empty skill (doing nothing, for testing only)
@@ -50,77 +50,88 @@ end
 
 --implementation of idle skill (also used when starting the battle)
 
-function common.idleskill(idletime, velocity, checkonce)
+function common.idleskill(idletime, velocity)
 	return function(battle, character)
 		--init skill data
 		if character.skilldata == nil then
 			character.skilldata = {
 				remaining = idletime,
-				firststop = false,
-				movement = 0, --will be properly set later
-				--TODO currently this movement variable is never read outside the function
-				--maybe we should remove it
+				--firststop = false,
+				ismoving = false,
 			}
 		end
 
-		--determine whether we should move (and set movement variable)
+		if not character.skilldata.ismoving then
+			--only check for starting
+			--don't move in this frame
+			--TODO need to match frame delay when enemy is killed (between hp -> 0 and ismoving -> true)
 
-		local shouldcheck = not character.skilldata.firststop or not checkonce
-		local nearestenemy, nearestdist = common.utils.findnearest(character, battle[character.team.enemy])
-		character.skilldata.movement = 0
+			--start check (with extension of last move)
+			local checkrange = character.checkrange or 0
+			local findenemy = common.utils.anyenemyinrange(character, battle,
+				character.character.attackrange + checkrange)
 
-		--temporary fix: prevent move when checkonce is true
-		--TODO need to allow checking
-		if not checkonce then
-			shouldcheck = false
-		end
-
-		if shouldcheck then
-			--TODO > or >=
-			--TODO parameterize 100
-			if nearestdist >= character.character.attackrange + 100 then
-				character.skilldata.movement = velocity
-			else
-				--there are 2 places we set first stop, and this is the first
-				--the other is in event action function
-				character.skilldata.firststop = true
-				character.readytime = character.readytime or battle.time
+			--set up moving state
+			if not findenemy then
+				character.skilldata.ismoving = true
+				character.checkrange = velocity
 			end
-		end
-
-		if character.skilldata.movement == 0 then
+			
+			--decrement counter
 			character.skilldata.remaining = character.skilldata.remaining - 1
 			if character.skilldata.remaining == 0 then
 				character.skillid = 0 --end current skill
 			end
+
 			return {}
 		else
-			return {
+			--first check (no extension)
+			local firstcheck = common.utils.anyenemyinrange(character, battle,
+				character.character.attackrange)
+			
+			if firstcheck then
+				--don't need to move
+				--set up stopped state
+				character.skilldata.ismoving = false
+				character.readytime = character.readytime or battle.time
+
+				--decrement counter
+				character.skilldata.remaining = character.skilldata.remaining - 1
+				if character.skilldata.remaining == 0 then
+					character.skillid = 0 --end current skill
+				end
+
+				return {}
+			else
+				--move
+				local moveevent = 
 				{
 					action = function(battle1, character1)
-						--TODO Lima can stand within enemies
-						--how will this affect move direction?
 						character1.pos = character1.pos + character1.team.direction * velocity
 
-						--second stop check
-						--here we consider the movement of the target
-						local newdist = nearestdist - velocity * 2
+						--second check (with extension)
+						local secondcheck = common.utils.anyenemyinrange(character1, battle1,
+							character1.character.attackrange + character1.checkrange)
 
-						--TODO < or <=
-						if newdist < character.character.attackrange + 100 then
-							--set to stop but don't modify movement
-							character1.skilldata.firststop = true
-							character.readytime = character.readytime or battle.time
+						if secondcheck then
+							--we should stop here
+							character1.skilldata.ismoving = false
+							character1.readytime = character1.readytime or battle.time
 						end
 					end
 				}
-			}
+				return { moveevent }
+			end
 		end
 	end
 end
 
+function common.enterskill()
+	return common.idleskill(151, 12)
+end
+
 function common.waitskill(totaltime)
-	return common.idleskill(totaltime, 12, false) --TODO velocity is 7.5?
+	return common.idleskill(totaltime, 7.5)
 end
 
 --empty characters

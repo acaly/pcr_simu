@@ -15,7 +15,7 @@ local function create()
 			[1] = {
 				name = "enter",
 				idle = true,
-				action = common.idleskill(37, 12, true),
+				action = common.enterskill(),
 			},
 			[2] = {
 				name = "wait_attack",
@@ -48,7 +48,7 @@ local function create()
 				action = common.emptyskill(75),
 			},
 		},
-		initskill = { 1, 6, 7, 4, 5 },
+		initskill = { 1, 7, 4, 5 },
 		loopskill = { 2, 3, 2, 3, 6, 7, 2, 3, 4, 5 },
 	}
 end

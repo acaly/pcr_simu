@@ -56,6 +56,7 @@ end
 function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata, skilllist, bufflist)
 	return {
 		character = character, --table
+
 		hp = hp, --int
 		tp = tp, --int
 		pos = pos, --int
@@ -66,7 +67,8 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		--TODO other parameters (atk, def, etc.)
 
 		--fields that are not initialized:
-		--readytime
+		--readytime (time at which the character finished its entering skill)
+		--checkrange (step length of the last movement, usually 12 or 7.5)
 
 		--do not write team (we don't know)
 		--it's handled by battle state instead
@@ -78,6 +80,7 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 				core.internal.cloneskillidlist(s.skilllist),
 				core.internal.clonebufflist(s.bufflist))
 			ret.readytime = s.readytime
+			ret.checkrange = s.checkrange
 			return ret
 		end
 	}
