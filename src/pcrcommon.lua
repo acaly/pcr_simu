@@ -154,8 +154,8 @@ function common.makeemptycharacter(name, attackrange, subname)
 				action = common.emptyskill(60 * 90), --90 seconds
 			}
 		},
-		initskill = function() return { 1 } end,
-		loopskill = function() return { 2 } end,
+		initskill = { 1 },
+		loopskill = { 2 },
 	}
 end
 
@@ -180,8 +180,8 @@ function common.makeemptycharacter_lima(name, attackrange, subname)
 				action = common.emptyskill(60 * 90), --90 seconds
 			}
 		},
-		initskill = function() return { 1 } end,
-		loopskill = function() return { 2 } end,
+		initskill = { 1 },
+		loopskill = { 2 },
 	}
 end
 
@@ -193,17 +193,23 @@ common.emptycharacters =
 	miyako = common.makeemptycharacter("miyako", 125),
 	kuuka = common.makeemptycharacter("kuuka", 130),
 	jun = common.makeemptycharacter("jun", 135),
+	kaori = common.makeemptycharacter("kaori", 145),
 	peko = common.makeemptycharacter("peko", 155),
 	kokkoro_spring = common.makeemptycharacter("kokkoro", 159, "spring"),
 	nozomi = common.makeemptycharacter("nozomi", 160),
 	makoto = common.makeemptycharacter("makoto", 165),
 	tsumugi = common.makeemptycharacter("tsumugi", 195),
+	hiyori = common.makeemptycharacter("hiyori", 200),
 	misogi = common.makeemptycharacter("misogi", 205),
 	tamaki = common.makeemptycharacter("tamaki", 215),
 	eriko = common.makeemptycharacter("eriko", 230),
 	djeeta = common.makeemptycharacter("djeeta", 245),
+	rei = common.makeemptycharacter("rei", 250),
 	yukari = common.makeemptycharacter("yukari", 405),
+	monika = common.makeemptycharacter("monika", 410),
 	nino = common.makeemptycharacter("nino", 415),
+	mifuyu = common.makeemptycharacter("mifuyu", 420),
+	illya = common.makeemptycharacter("illya", 425),
 	saren = common.makeemptycharacter("saren", 430),
 	kokkoro = common.makeemptycharacter("kokkoro", 500),
 	rin = common.makeemptycharacter("rin", 550),

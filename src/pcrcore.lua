@@ -8,8 +8,8 @@ core.internal = {}
 		subname: string or nil, for display only
 		id: string, used internally to identify different characters in a same team
 			within one team id must be unique
-		initskill: a function returning a list of skill index filled initially
-		loopskill: a function returning a list of skill index after the initskill
+		initskill: a list of skill index filled initially
+		loopskill: a list of skill index after the initskill
 		skills: a list of skill table
 		order: equals attack range, except for using 0 for lima
 			may be fractional (to give characters with equal attack ranges strict order)
@@ -160,11 +160,11 @@ function core.simulation.firstframe(s)
 	--set initial skills
 	for _, ch in next, s.team1 do
 		ch.skillid = 0
-		ch.skilllist = ch.character.initskill()
+		ch.skilllist = core.internal.cloneskillidlist(ch.character.initskill)
 	end
 	for _, ch in next, s.team2 do
 		ch.skillid = 0
-		ch.skilllist = ch.character.initskill()
+		ch.skilllist = core.internal.cloneskillidlist(ch.character.initskill)
 	end
 
 	return core.internal.frame(nil, nil, s, {})
@@ -175,7 +175,7 @@ function core.simulation.makeevents(s) --TODO need options parameter
 		if character.skillid == 0 then
 			--start next skill
 			if #character.skilllist == 0 then
-				character.skilllist = character.character.loopskill()
+				character.skilllist = core.internal.cloneskillidlist(character.character.loopskill)
 			end
 			character.skillid = table.remove(character.skilllist, 1)
 			character.skilldata = nil

@@ -48,8 +48,8 @@ local function create()
 				action = common.emptyskill(75),
 			},
 		},
-		initskill = function() return { 1, 6, 7, 4, 5 } end,
-		loopskill = function() return { 2, 3, 2, 3, 6, 7, 2, 3, 4, 5 } end,
+		initskill = { 1, 6, 7, 4, 5 },
+		loopskill = { 2, 3, 2, 3, 6, 7, 2, 3, 4, 5 },
 	}
 end
 

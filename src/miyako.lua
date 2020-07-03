@@ -15,7 +15,7 @@ local function create(skill1level)
 			[1] = {
 				name = "enter",
 				idle = true,
-				action = common.idleskill(48, 12, true),
+				action = common.idleskill(48, 12, true), --148 is 151-103, where 151 is a constant for different characters
 			},
 			[2] = {
 				name = "wait_attack",
@@ -48,8 +48,8 @@ local function create(skill1level)
 				action = common.emptyskill(189),
 			},
 		},
-		initskill = function() return { 1, 2, 3, 2, 3, 4, 5, 2, 3, 6, 7 } end,
-		loopskill = function() return { 2, 3, 2, 3, 4, 5, 6, 7 } end,
+		initskill = { 1, 2, 3, 2, 3, 4, 5, 2, 3, 6, 7 },
+		loopskill = { 2, 3, 2, 3, 4, 5, 6, 7 },
 	}
 end
 
