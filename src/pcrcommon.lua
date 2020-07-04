@@ -21,6 +21,7 @@ end
 function common.utils.anyenemyinrange(character, battle, totaldistance)
 	for _, ee in next, battle[character.team.enemy] do
 		--TODO parameterize 100
+		--TODO exclude dead characters?
 		if math.abs(ee.pos - character.pos) < totaldistance + 100 then
 			return true
 		end

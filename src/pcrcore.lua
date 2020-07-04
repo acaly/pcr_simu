@@ -25,6 +25,13 @@ core.internal = {}
 	event table:
 		action: function(battlestate, characterstate) that updates the state
 		maybe other fields
+	buff table:
+		beforeupdate: function(battlestate, characterstate, bufftable), called before skill action
+		name: string, for display only
+		disableupdate: if existing and is true, disables the update of current skill action
+		active: if non-existing or is false, will be removed by the simulation system before the end of the frame
+		currently no afterupdate function
+		should avoid using tables as value (which needs deep copy)
 ]]
 
 core.internal.teams = {
@@ -47,10 +54,17 @@ function core.internal.cloneskilldata(data)
 	return core.internal.cloneskillidlist(data)
 end
 
-function core.internal.clonebufflist(data)
-	--simply copy each field
-	--we may need more complicated method later (deep copy)
+function core.internal.clonebufftable(data)
 	return core.internal.cloneskillidlist(data)
+end
+
+function core.internal.clonebufflist(list)
+	if list == nil then return {} end
+	local ret = {}
+	for _, val in next, list do
+		table.insert(ret, core.internal.clonebufftable(val))
+	end
+	return ret
 end
 
 function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata, skilllist, bufflist)
@@ -63,7 +77,7 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		skillid = skillid, --int, 0 is no skill (simulation system will initialize the next skill in next frame)
 		skilldata = skilldata, --skill-defined value (usually a table)
 		skilllist = skilllist, -- a list of skills (index) that would start after the current one
-		bufflist = bufflist, --not supported yet
+		bufflist = bufflist, --a list of buff tables
 		--TODO other parameters (atk, def, etc.)
 
 		--fields that are not initialized:
@@ -130,8 +144,17 @@ function core.internal.battlestate(time, team1, team2)
 				m = math.floor(ss / 60)
 				s = ss - m * 60
 			end
+			m = string.format("%02d", m)
+			s = string.format("%02d", s)
+			ss = string.format("%02d", ss)
+			f = string.format("%02d", f)
 			local ret = format:gsub("m", m):gsub("ss", ss):gsub("s", s):gsub("f", f)
 			return ret
+		end,
+		findcharacter = function(state, teamname, id)
+			for _, ch in next, state[teamname] do
+				if ch.character.id == id then return ch end
+			end
 		end,
 		--TODO find player in team by id
 	}
@@ -147,6 +170,7 @@ function core.internal.frame(parent, options, state, eventlist)
 end
 
 core.simulation = {}
+core.simulation.internal = {}
 
 function core.simulation.firstframe(s)
 	--sort characters
@@ -175,21 +199,60 @@ function core.simulation.firstframe(s)
 	return core.internal.frame(nil, nil, s, {})
 end
 
-function core.simulation.makeevents(s) --TODO need options parameter
-	local updatecharacter = function(character, battle)
-		if character.skillid == 0 then
-			--start next skill
-			if #character.skilllist == 0 then
-				character.skilllist = core.internal.cloneskillidlist(character.character.loopskill)
-			end
-			character.skillid = table.remove(character.skilllist, 1)
-			character.skilldata = nil
+function core.simulation.internal.updatecharacter(character, battle)
+	local ret = {}
+
+	if character.skillid == 0 then
+		--start next skill
+		if #character.skilllist == 0 then
+			character.skilllist = core.internal.cloneskillidlist(character.character.loopskill)
 		end
-		local skill = character.character.skills[character.skillid]
-		return skill.action(battle, character) --call skill action function
+		character.skillid = table.remove(character.skilllist, 1)
+		character.skilldata = nil
+
+		table.insert(ret, {
+			name = "skillstart",
+			skillid = character.skillid
+		})
 	end
-	local updateteam = function(team, battle, results)
-		--remove dead characters (TODO is it before or after? 2 teams together or separate? or maybe as soon as damage is applied?)
+	local skill = character.character.skills[character.skillid]
+
+	local noskillupdate = false
+
+	--before calling skill action, check buff actions first
+	local index = 1
+	while index <= #character.bufflist do
+		local buff = character.bufflist[index]
+
+		--call beforeupdate function
+		local buffevents = buff.beforeupdate(battle, character, buff)
+		if #buffevents > 0 then
+			for _, ee in next, buffevents do table.insert(ret, ee) end
+		end
+
+		if buff.disableupdate then noskillupdate = true end
+		if not buff.active then
+			table.remove(character.bufflist, index)
+			index = index - 1
+		end
+
+		index = index + 1
+	end
+
+	--skill
+	if not noskillupdate then
+		local skillevents = skill.action(battle, character) --call skill action function
+		for _, ee in next, skillevents do table.insert(ret, ee) end
+	end
+
+	return ret
+end
+
+function core.simulation.internal.updatestate(s)
+	local updateteam = function(team, battle, results, teamname)
+		--remove dead characters
+		--TODO is it before or after? 2 teams together or separate? or maybe as soon as damage is applied?
+		--if it's as soon as damage is applied, we need to be careful about the iteration
 		local i = 1
 		while i <= #team do
 			if team[i].hp == 0 then
@@ -201,17 +264,21 @@ function core.simulation.makeevents(s) --TODO need options parameter
 
 		--get a list of events and merge them to results
 		for _, character in next, team do
-			local newresults = updatecharacter(character, battle)
+			local newresults = core.simulation.internal.updatecharacter(character, battle)
 			for _, newevent in next, newresults do
-				newevent.action(battle, character) --execute immediately
+				if newevent.action then
+					newevent.action(battle, character) --execute immediately
+				end
+				newevent.character = character.character.id
+				newevent.team = teamname
 				table.insert(results, newevent)
 			end
 		end
 	end
 
 	local r = {}
-	updateteam(s.team1, s, r)
-	updateteam(s.team2, s, r)
+	updateteam(s.team1, s, r, "team1")
+	updateteam(s.team2, s, r, "team2")
 	--according to Xier, Lima is updated separately, but currently I have no evidence
 
 	return r
@@ -220,11 +287,28 @@ end
 function core.simulation.next(frame, options)
 	local nextstate = frame.state:clone()
 	nextstate.time = nextstate.time + 1
-	local events = core.simulation.makeevents(nextstate)
-	return core.internal.frame(frame, options, nextstate, events)
+	local events = core.simulation.internal.updatestate(nextstate)
+	local nextframe = core.internal.frame(frame, options, nextstate, events)
+	if options then
+		options(nextframe)
+	end
+	return nextframe
 end
 
 function core.simulation.run(frame, options, count)
+	if type(options) == "table" then
+		--allow using table (array) to merge several handlers
+		options = function(f)
+			for _, item in next, options do
+				item(f)
+			end
+		end
+	end
+	if options ~= nil and type(options) ~= "function" then
+		print("invalid simulation handler")
+		options = nil
+	end
+
 	local result = frame
 	for i = 1, count do
 		result = core.simulation.next(result, options)
