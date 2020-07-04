@@ -31,26 +31,27 @@ lua entering_manual.lua nozomi nozomi
 ### 技能时间轴的计算
 目前只填了宫子和真琴两个角色的时间轴，其他角色还只有空技能所以无法计算。宫子的无敌技能默认使用的是154级的数据（可以从miyako.lua中修改）。
 
-时间轴计算目前没有直接输出结果的方法，只能手动逐帧检查。以宫子对阵真琴为例，我方的宫子在199帧（时钟跳到1:27后的第19帧）开始一个普攻动作。从项目目录/test中启动lua解释器并执行：
+以宫子对阵真琴为例，我方的宫子在199帧（时钟跳到1:27后的第19帧）开始一个普攻动作。从项目目录/test中启动lua解释器并执行：
 ```lua
 pcr = require("env")
-miyako = pcr.characters.miyako.default() --创建miyako角色
-makoto = pcr.characters.makoto.default() --创建makoto角色
-frame0 = pcr.utils.makebattle({ miyako }, { makoto }) --创建一场战斗（的第一帧状态）
+miyako = pcr.characters.miyako.default() --创建miyako角色的实例
 
-frame198 = pcr.core.simulation.run(frame0, nil, 198) --模拟到198帧
-print(frame198.state.team1[1].skillid) --输出198帧我方队伍1号角色的当前技能id（应当显示0，表示前一技能刚刚结束）
+--创建一场战斗（的第一帧状态），进攻方使用带时间轴的miyako（用上面创建的角色实例），防守方使用无时间轴的nozomi（用字符串指定）
+frame0 = pcr.utils.makebattle({ miyako }, { "nozomi" }) 
 
-frame199 = pcr.core.simulation.run(frame0, nil, 199) --模拟到199帧
-print(frame199.state.team1[1].skillid) --输出199帧我方队伍1号角色的当前技能id（应当显示3，对应于miyako.lua中注册的第3个技能，也就是普攻）
+--创建一个函数来输出技能开始事件
+h=function(f)
+  for _,ee in next,f.eventlist do
+    if ee.name == "skillstart" then
+      local skill = f.state:findcharacter(ee.team, ee.character).character.skills[ee.skillid]
+      if not skill.idle then
+        print(f.state:clocktime("m:s+f") .. "  " .. ee.character .. "  " .. skill.name)
+      end
+    end
+  end
+end
+
+lastframe = pcr.core.simulation.run(frame0, h, 5460) --模拟到91秒
 ```
-
-对于其他角色，如果有攻击距离数据（在pcrcommon.lua中），也可以放到场上（会影响双方的入场距离和时间，因此会对先后手有影响，但是没有技能，不能计算时间轴）。
-这些角色可以直接使用字符串名称来创建，例如
-```lua
-pcr = require("env")
-miyako = pcr.characters.miyako.default() --创建miyako角色
-makoto = pcr.characters.makoto.default() --创建makoto角色
-frame0 = pcr.utils.makebattle({ miyako }, { "nozomi", "makoto", "tamaki", "maho", "kyouka" }) --创建一场战斗（的第一帧状态）
-```
+从输出中可以看到```01:27+19  miyako  attack```即为宫子的第一个攻击技能。
 
