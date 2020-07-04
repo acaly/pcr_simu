@@ -238,6 +238,7 @@ common.emptycharacters =
 	mifuyu = common.makeemptycharacter("mifuyu", 420),
 	illya = common.makeemptycharacter("illya", 425),
 	saren = common.makeemptycharacter("saren", 430),
+	anna = common.makeemptycharacter("anna", 440),
 	kokkoro = common.makeemptycharacter("kokkoro", 500),
 	rin = common.makeemptycharacter("rin", 550),
 	saren_summer = common.makeemptycharacter("saren", 585, "summer"),

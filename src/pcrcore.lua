@@ -156,7 +156,6 @@ function core.internal.battlestate(time, team1, team2)
 				if ch.character.id == id then return ch end
 			end
 		end,
-		--TODO find player in team by id
 	}
 end
 
@@ -174,13 +173,13 @@ core.simulation.internal = {}
 
 function core.simulation.firstframe(s)
 	--sort characters
-	table.sort(s.team1, function(ch1, ch2) return ch1.character.order > ch2.character.order end) --big to small
-	table.sort(s.team2, function(ch1, ch2) return ch1.character.order < ch2.character.order end) --small to big
-	--TODO need confirmation: according to Xier, team1 should also sort from small to big
+	table.sort(s.team1, function(ch1, ch2) return ch1.character.order < ch2.character.order end)
+	table.sort(s.team2, function(ch1, ch2) return ch1.character.order < ch2.character.order end)
+	--TODO need confirmation: according to Xier, lima in team2 is updated before team1
 
 	--set initial position
 	for index, ch in next, s.team1 do
-		ch.pos = -660 - 200 * (#s.team1 - index)
+		ch.pos = -660 - 200 * (index - 1)
 	end
 	for index, ch in next, s.team2 do
 		ch.pos = 660 + 200 * (index - 1)
