@@ -40,8 +40,8 @@ miyako = pcr.characters.miyako.default() --创建miyako角色的实例
 frame0 = pcr.utils.makebattle({ miyako }, { "nozomi" }) 
 
 --创建一个函数来输出技能开始事件
-h=function(f)
-  for _,ee in next,f.eventlist do
+h = function(f)
+  for _, ee in next, f.eventlist do
     if ee.name == "skillstart" then
       local skill = f.state:findcharacter(ee.team, ee.character).character.skills[ee.skillid]
       if not skill.idle then
@@ -53,5 +53,35 @@ end
 
 lastframe = pcr.core.simulation.run(frame0, h, 5460) --模拟到91秒
 ```
-从输出中可以看到```01:27+19  miyako  attack```即为宫子的第一个攻击技能。
+输出结果为
+```
+01:27+16  nozomi  empty
+01:27+19  miyako  attack
+01:24+35  miyako  attack
+01:22+09  miyako  skill1+
+01:15+22  miyako  attack
+01:13+12  miyako  skill2
+01:08+04  miyako  attack
+01:05+20  miyako  attack
+01:04+54  miyako  skill1+
+00:58+41  miyako  skill2
+00:53+33  miyako  attack
+00:50+49  miyako  attack
+00:48+23  miyako  skill1+
+00:42+10  miyako  skill2
+00:37+02  miyako  attack
+00:34+18  miyako  attack
+00:33+52  miyako  skill1+
+00:27+39  miyako  skill2
+00:22+31  miyako  attack
+00:19+47  miyako  attack
+00:17+21  miyako  skill1+
+00:11+08  miyako  skill2
+00:06+00  miyako  attack
+00:03+16  miyako  attack
+00:02+50  miyako  skill1+
+```
+其中```01:27+19  miyako  attack```即为宫子的第一个攻击技能。
+
+注意，这里由于技能还没有添加实际效果，因此没有伤害、TP回复等效果，因而也就不会有死亡、UB等插入的事件，目前暂时还不能模拟实际的战斗效果。
 
