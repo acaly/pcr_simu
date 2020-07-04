@@ -20,7 +20,7 @@ local function create(skill1level)
 			[2] = {
 				name = "wait_attack",
 				idle = true,
-				action = common.waitskill(103),
+				action = common.waitskill(1.7),
 			},
 			[3] = {
 				name = "attack",
@@ -30,7 +30,7 @@ local function create(skill1level)
 			[4] = {
 				name = "wait_skill1+",
 				idle = true,
-				action = common.waitskill(1),
+				action = common.waitskill(0),
 			},
 			[5] = {
 				name = "skill1+",
@@ -40,7 +40,7 @@ local function create(skill1level)
 			[6] = {
 				name = "wait_skill2",
 				idle = true,
-				action = common.waitskill(17),
+				action = common.waitskill(0.27),
 			},
 			[7] = {
 				name = "skill2",

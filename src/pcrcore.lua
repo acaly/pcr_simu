@@ -69,6 +69,7 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		--fields that are not initialized:
 		--readytime (time at which the character finished its entering skill)
 		--checkrange (step length of the last movement, usually 12 or 7.5)
+		acceleration = 1.0, --stored at the beginning of a skill, affecting next cast time
 
 		--do not write team (we don't know)
 		--it's handled by battle state instead
@@ -81,6 +82,7 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 				core.internal.clonebufflist(s.bufflist))
 			ret.readytime = s.readytime
 			ret.checkrange = s.checkrange
+			ret.acceleration = s.acceleration
 			return ret
 		end
 	}

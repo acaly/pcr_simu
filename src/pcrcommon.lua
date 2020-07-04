@@ -30,13 +30,25 @@ end
 
 --implementation of empty skill (doing nothing, for testing only)
 
-function common.emptyskill(totaltime)
+function common.setupacceleration(character)
+	character.acceleration = 1.0
+end
+
+function common.emptyskill(totalframes)
 	return function(battle, character)
 		--init skill data
 		if character.skilldata == nil then
 			character.skilldata = {
-				remaining = totaltime,
+				remaining = totalframes,
 			}
+
+			--set up acceleration
+			--we know the acceleration buff at the beginning of one skill will
+			--affect the cast time of next skill, but we don't have tests with
+			--the accuracy of 1 frame
+			--TODO maybe we should do more tests
+
+			common.setupacceleration(character)
 		end
 
 		--update counter
@@ -56,9 +68,10 @@ function common.idleskill(idletime, velocity)
 	return function(battle, character)
 		--init skill data
 		if character.skilldata == nil then
+			local totalframes = 1 + math.floor(character.acceleration * idletime * 60)
+
 			character.skilldata = {
-				remaining = idletime,
-				--firststop = false,
+				remaining = totalframes,
 				ismoving = false,
 			}
 		end
@@ -129,7 +142,7 @@ function common.idleskill(idletime, velocity)
 end
 
 function common.enterskill()
-	return common.idleskill(151, 12)
+	return common.idleskill(2.5, 12)
 end
 
 function common.waitskill(totaltime)
