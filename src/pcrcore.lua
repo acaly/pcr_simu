@@ -79,6 +79,10 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		skilllist = skilllist, -- a list of skills (index) that would start after the current one
 		bufflist = bufflist, --a list of buff tables
 
+		--width is currently fixed at 100
+		width = character.width or 100,
+
+		--note that atk and def can be below zero (need to check after reading)
 		level = character.level or 100,
 		physicalatk = character.physicalatk or 0,
 		magicatk = character.magicatk or 0,

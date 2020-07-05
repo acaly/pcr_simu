@@ -9,9 +9,8 @@ common.utils = {}
 --range check in skills might allow equal distance
 function common.utils.anyenemyinrange(character, battle, totaldistance)
 	for _, ee in next, battle[character.team.enemy] do
-		--TODO parameterize 100
 		--TODO exclude dead characters?
-		if math.abs(ee.pos - character.pos) < totaldistance + 100 then
+		if math.abs(ee.pos - character.pos) < totaldistance + ee.width then
 			return true
 		end
 	end
@@ -22,18 +21,23 @@ function common.utils.setupacceleration(character)
 	character.acceleration = 1.0
 end
 
-function common.utils.selectprovoking(character, team, maxrange)
-	local actualrange = maxrange + character.checkrange
+function common.utils.checkbuffbyname(character, name)
+	for _, buff in next, character.bufflist do
+		if buff.name == name then
+			return true
+		end
+	end
+end
+
+function common.utils.selectprovoking(character, team, skillrange)
+	local actualrange = skillrange + character.checkrange
 	for _, ee in next, team do
 		--allow equal
 		--TODO confirm this
-		--TODO parameterize 100
-		if math.abs(character.pos - ee.pos) <= actualrange + 100 then
-			for _, buff in next, ee.bufflist do
-				if buff.name == "provoking" then
-					--we assume there is only one
-					return ee
-				end
+		if math.abs(character.pos - ee.pos) <= actualrange + ee.width then
+			if common.utils.checkbuffbyname(ee, "provoking") then
+				--assuming there is only one with this buff
+				return ee
 			end
 		end
 	end
@@ -98,6 +102,7 @@ function common.utils.qsort(team, selectfunction, selectindex, inversedinitialor
 	iteration(0, #storage - 1)
 
 	if selectindex > #storage then selectindex = #storage end
+	if selectindex < 0 then selectindex = #storage - selectindex + 1 end
 	return storage[selectindex].character
 end
 
@@ -105,19 +110,20 @@ function common.utils.selectfunctiondistance(character, maxdistanceinclusive)
 	return function(ch)
 		local distance = math.abs(ch.pos - character.pos)
 		--simply ignore characters out of range (should work)
-		if distance > maxdistanceinclusive then return nil end
+		if distance > maxdistanceinclusive + ch.width then return nil end
 		return distance
 	end
 end
 
 --index=1: nearest, index=2: second nearest, etc.
-function common.utils.selectnearestenemy(character, team, maxrange, ignoreprovocation, index)
+--index=-1: farthest
+function common.utils.selectnearestenemy(character, team, skillrange, ignoreprovocation, index)
 	if not ignoreprovocation then
-		local p = common.utils.selectprovoking(character, team, maxrange)
+		local p = common.utils.selectprovoking(character, team, skillrange)
 		if p then return p end
 	end
 	return common.utils.qsort(team,
-		common.utils.selectfunctiondistance(character, maxrange + 100 + character.checkrange), index or 1)
+		common.utils.selectfunctiondistance(character, skillrange + character.checkrange), index or 1)
 end
 
 --skill events
@@ -133,6 +139,9 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 		targetid = target.character.id,
 	}
 	function eventtable.action(battle, character)
+		--we are not recalculating target and source character from the given battle state
+		--this should work as long as the simulator always clone a new battle state and execute skill actions there
+
 		local hitprob = 1
 		if type == 1 then
 			hitprob = 100 / (100 + target.dodge - source.accuracy)
@@ -167,8 +176,9 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 		if eventtable.critical then
 			realdamage = realdamage * (criticalratio or 2)
 		end
-		--TODO rounding? random damage fluctuation?
-		realdamage = math.ceil(realdamage) * (count or 1)
+		--TODO rounding? (according to Xier, TP is not rounded, maybe same for damage?)
+		--TODO random damage fluctuation?
+		realdamage = realdamage * (count or 1)
 
 		eventtable.damage = realdamage
 
@@ -183,6 +193,64 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 	end
 	return eventtable
 end
+
+--startfunction and finishfunction: function(battle, character, bufftable)
+--note that buff starts from the next frame, so be careful about the timing when applying buffs
+function common.events.buff(character, name, totalframes, startfunction, finishfunction)
+	local eventtable = {
+		name = "buff",
+		time = totalframes,
+		targetteam = character.team.ally,
+		targetid = character.character.id,
+	}
+	function eventtable.action(_, _)
+		local bufftable = {
+			name = name,
+			active = true,
+			totalframes = totalframes,
+			frames = 0,
+		}
+		function bufftable.beforeupdate(battle1, character1, bufftable1)
+			if bufftable1.frames == 0 then
+				startfunction(battle1, character1, bufftable1)
+			end
+			bufftable1.frames = bufftable1.frames + 1
+			if bufftable1.frames == totalframes then
+				finishfunction(battle1, character1, bufftable1)
+				bufftable1.active = false
+			end
+		end
+		table.insert(character.bufflist, bufftable)
+	end
+	return eventtable
+end
+
+--event generators (used in generic skill)
+
+common.eventgenerators = {}
+
+function common.eventgenerators.damagenearest(type, index)
+	return function(battle, character, results)
+		local target = common.utils.selectnearestenemy(character, battle[character.team.enemy], character.character.attackrange, false, index)
+		local damage
+		if type == 1 then
+			damage = character.physicalatk
+		elseif type == 2 then
+			damage = character.magicatk
+		end
+		table.insert(results, common.events.damage(character, target, damage, type))
+	end
+end
+
+function common.eventgenerators.buffself(name, totalframes, startfunction, finishfunction)
+	return function(battle, character, results)
+		table.insert(results, common.events.buff(character, name, totalframes, startfunction, finishfunction))
+	end
+end
+
+--TODO we need a generator to provide startfunction and finishfunction automatically
+--separate buff type, buff strength and generator
+--improve buffself
 
 --implementation of empty skill (doing nothing, for testing only)
 
@@ -275,6 +343,7 @@ function common.idleskill(idletime, velocity)
 				local moveevent = 
 				{
 					name = "step",
+					velocity = velocity,
 					action = function(battle1, character1)
 						character1.pos = character1.pos + character1.team.direction * velocity
 
@@ -303,8 +372,10 @@ function common.waitskill(totaltime)
 	return common.idleskill(totaltime, 7.5)
 end
 
---simple attack skill
-function common.attackskill(totalframes, attackframe, type)
+--generic skill (as a template for most skills)
+
+--eventgenerators: { time(frame) -> generator function or list of generator functions }
+function common.genericskill(totalframes, eventgenerators)
 	return function(battle, character)
 		--init skill data
 		if character.skilldata == nil then
@@ -323,16 +394,15 @@ function common.attackskill(totalframes, attackframe, type)
 
 		local ret = {}
 
-		--damage event
-		if character.skilldata.count == attackframe then
-			local target = common.utils.selectnearestenemy(character, battle[character.team.enemy], character.character.attackrange)
-			local damage
-			if type == 1 then
-				damage = character.physicalatk
-			elseif type == 2 then
-				damage = character.magicatk
+		local g = eventgenerators[character.skilldata.count]
+		if g then
+			if type(g) == "function" then
+				g(battle, character, ret)
+			elseif type(g) == "table" then
+				for _, func in next, g do
+					func(battle, character, ret)
+				end
 			end
-			table.insert(ret, common.events.damage(character, target, damage, type))
 		end
 
 		--update counter
@@ -343,6 +413,11 @@ function common.attackskill(totalframes, attackframe, type)
 
 		return ret
 	end
+end
+
+--simple attack skill
+function common.attackskill(totalframes, attackframe, type)
+	return common.genericskill(totalframes, { [attackframe] = common.eventgenerators.damagenearest(type, 1) })
 end
 
 --empty characters
