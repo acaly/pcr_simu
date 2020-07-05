@@ -25,7 +25,7 @@ local function create(skill1level)
 			[3] = {
 				name = "attack",
 				idle = false,
-				action = common.emptyskill(93),
+				action = common.attackskill(93, 27, 1),
 			},
 			[4] = {
 				name = "wait_skill1+",

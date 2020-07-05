@@ -78,7 +78,17 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		skilldata = skilldata, --skill-defined value (usually a table)
 		skilllist = skilllist, -- a list of skills (index) that would start after the current one
 		bufflist = bufflist, --a list of buff tables
-		--TODO other parameters (atk, def, etc.)
+
+		level = character.level or 100,
+		physicalatk = character.physicalatk or 0,
+		magicatk = character.magicatk or 0,
+		physicaldef = character.physicaldef or 0,
+		magicdef = character.magicdef or 0,
+		accuracy = character.accuracy or 0,
+		dodge = character.dodge or 0,
+		physicalcritical = character.physicalcritical or 0,
+		magiccritical = character.magiccritical or 0,
+		--TODO other parameters (also update clone function)
 
 		--fields that are not initialized:
 		--readytime (time at which the character finished its entering skill)
@@ -94,6 +104,17 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 				core.internal.cloneskilldata(s.skilldata),
 				core.internal.cloneskillidlist(s.skilllist),
 				core.internal.clonebufflist(s.bufflist))
+
+			ret.level = s.level
+			ret.physicalatk = s.physicalatk
+			ret.magicatk = s.magicatk
+			ret.physicaldef = s.physicaldef
+			ret.magicdef = s.magicdef
+			ret.accuracy = s.accuracy
+			ret.dodge = s.dodge
+			ret.physicalcritical = s.physicalcritical
+			ret.magiccritical = s.magiccritical
+
 			ret.readytime = s.readytime
 			ret.checkrange = s.checkrange
 			ret.acceleration = s.acceleration
@@ -123,9 +144,12 @@ function core.internal.battlestate(time, team1, team2)
 		time = time, --int, frame index starting from 0, pvp timer starts (changing from 1:30 to 1:29) at time = 60
 		team1 = team1, --a list of characters
 		team2 = team2, --a list of characters
+
 		clone = function(s)
-			return core.internal.battlestate(s.time,
+			local ret = core.internal.battlestate(s.time,
 				core.internal.cloneteam(s.team1), core.internal.cloneteam(s.team2))
+			ret.randomseed = s.randomseed
+			return ret
 		end,
 		clocktime = function(state, format)
 			if format == nil then format = "m:s" end
@@ -166,6 +190,16 @@ function core.internal.frame(parent, options, state, eventlist)
 		state = state, --battle state table
 		eventlist = eventlist, --a list of events (containing function applied to the last battle state)
 	}
+end
+
+--state: a table (battlestate table is used in simulation)
+function core.internal.randf(state)
+	if not state.randomseed then
+		--use math.random to initialize the seed
+		state.randomseed = math.random(10000)
+	end
+	state.randomseed = (state.randomseed * 1103515245 + 12345) & ((1 << 31) - 1)
+	return ((state.randomseed >> 5) & 65535) / 65536
 end
 
 core.simulation = {}

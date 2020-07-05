@@ -25,7 +25,7 @@ local function create()
 			[3] = {
 				name = "attack",
 				idle = false,
-				action = common.emptyskill(69),
+				action = common.attackskill(69, 30, 1),
 			},
 			[4] = {
 				name = "wait_skill1+",

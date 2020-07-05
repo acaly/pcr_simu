@@ -1,23 +1,12 @@
+local core = require("pcrcore")
 local common = {}
-
---common script
 
 common.utils = {}
 
---TODO need to check what will happen when 2 enemies have same position
-function common.utils.findnearest(character, team)
-	local nearestenemy = nil
-	local nearestdist = -1
-	for _, enemy in next, team do
-		local dd = math.abs(enemy.pos - character.pos)
-		if nearestdist < 0 or dd < nearestdist then
-			nearestdist = dd
-			nearestenemy = enemy
-		end
-	end
-	return nearestenemy, nearestdist
-end
+--common script
 
+--TODO be careful when using this in skills
+--range check in skills might allow equal distance
 function common.utils.anyenemyinrange(character, battle, totaldistance)
 	for _, ee in next, battle[character.team.enemy] do
 		--TODO parameterize 100
@@ -29,11 +18,173 @@ function common.utils.anyenemyinrange(character, battle, totaldistance)
 	return false
 end
 
---implementation of empty skill (doing nothing, for testing only)
-
-function common.setupacceleration(character)
+function common.utils.setupacceleration(character)
 	character.acceleration = 1.0
 end
+
+function common.utils.selectprovoking(character, team, maxrange)
+	local actualrange = maxrange + character.checkrange
+	for _, ee in next, team do
+		--allow equal
+		--TODO confirm this
+		--TODO parameterize 100
+		if math.abs(character.pos - ee.pos) <= actualrange + 100 then
+			for _, buff in next, ee.bufflist do
+				if buff.name == "provoking" then
+					--we assume there is only one
+					return ee
+				end
+			end
+		end
+	end
+	return nil
+end
+
+--quick sort
+--normal order is 54321(not same team), inversedinitialorder is 12345 (same team)
+--TODO both orders have not been confirmed yet
+--note that this returns the most possible character, which might not be with the specified index
+--(if distance is not enough)
+function common.utils.qsort(team, selectfunction, selectindex, inversedinitialorder)
+	local storage = {}
+	if inversedinitialorder then
+		for _, ch in next, team do
+			local val = selectfunction(ch)
+			if val then table.insert(storage, { character = ch, value = val }) end
+		end
+	else
+		local index = #team
+		while index >= 1 do
+			local ch = team[index]
+			local val = selectfunction(ch)
+			if val then table.insert(storage, { character = ch, value = val }) end
+			index = index - 1
+		end
+	end
+	if #storage == 0 then return nil end
+
+	local function iteration(left, right)
+		if left >= right then return end
+
+		local scanleft = left
+		local scanright = right
+		local pivotval = storage[math.floor((left + right) / 2) + 1].value
+
+		while true do
+			while scanleft < right and storage[scanleft + 1].value < pivotval do
+				scanleft = scanleft + 1
+			end
+			while scanright > left and storage[scanright + 1].value > pivotval do
+				scanright = scanright - 1
+			end
+			if scanleft > scanright then break end
+
+			local exchange = storage[scanleft + 1]
+			storage[scanleft + 1] = storage[scanright + 1]
+			storage[scanright + 1] = exchange
+
+			scanleft = scanleft + 1
+			scanright = scanright - 1
+		end
+
+		if left < scanright then
+			iteration(left, scanright)
+		end
+		if scanleft < right then
+			iteration(scanleft, right)
+		end
+	end
+
+	iteration(0, #storage - 1)
+
+	if selectindex > #storage then selectindex = #storage end
+	return storage[selectindex].character
+end
+
+function common.utils.selectfunctiondistance(character, maxdistanceinclusive)
+	return function(ch)
+		local distance = math.abs(ch.pos - character.pos)
+		--simply ignore characters out of range (should work)
+		if distance > maxdistanceinclusive then return nil end
+		return distance
+	end
+end
+
+--index=1: nearest, index=2: second nearest, etc.
+function common.utils.selectnearestenemy(character, team, maxrange, ignoreprovocation, index)
+	if not ignoreprovocation then
+		local p = common.utils.selectprovoking(character, team, maxrange)
+		if p then return p end
+	end
+	return common.utils.qsort(team,
+		common.utils.selectfunctiondistance(character, maxrange + 100 + character.checkrange), index or 1)
+end
+
+--skill events
+common.events = {}
+
+--type=1: physical, type=2: magic
+function common.events.damage(source, target, basedamage, type, count, criticalratio)
+	local eventtable = {
+		name = "damage",
+		sourceteam = source.team.ally,
+		sourceid = source.character.id,
+		targetteam = target.team.ally,
+		targetid = target.character.id,
+	}
+	function eventtable.action(battle, character)
+		local hitprob = 1
+		if type == 1 then
+			hitprob = 100 / (100 + target.dodge - source.accuracy)
+			if hitprob > 1 then hitprob = 1 end
+			--TODO dark debuff
+		end
+		eventtable.miss = core.internal.randf(battle) >= hitprob
+		--TODO ensured dodging (miyako)
+		--TODO invinsible
+
+		if eventtable.miss then
+			eventtable.critical = false
+			eventtable.damage = 0
+			return
+		end
+
+		local critical = 0.05 * 0.01 * source.level / target.level
+		if type == 1 then
+			critical = critical * source.physicalcritical
+		elseif type == 2 then
+			critical = critical * source.magiccritical
+		end
+		eventtable.critical = core.internal.randf(battle) < critical
+
+		local def
+		if type == 1 then
+			def = target.physicaldef
+		elseif type == 2 then
+			def = target.magicdef
+		end
+		local realdamage = basedamage / (1 + math.max(def, 0) / 100)
+		if eventtable.critical then
+			realdamage = realdamage * (criticalratio or 2)
+		end
+		--TODO rounding? random damage fluctuation?
+		realdamage = math.ceil(realdamage) * (count or 1)
+
+		eventtable.damage = realdamage
+
+		if target.hp > realdamage then
+			target.hp = target.hp - realdamage
+		else
+			target.hp = 0
+		end
+		--TODO hp steal (physical & magic separately?)
+		--TODO tp recovery due to damage
+		--TODO tp recovery due to killing
+	end
+	return eventtable
+end
+
+--implementation of empty skill (doing nothing, for testing only)
 
 function common.emptyskill(totalframes)
 	return function(battle, character)
@@ -49,7 +200,7 @@ function common.emptyskill(totalframes)
 			--the accuracy of 1 frame
 			--TODO maybe we should do more tests
 
-			common.setupacceleration(character)
+			common.utils.setupacceleration(character)
 		end
 
 		--update counter
@@ -120,8 +271,10 @@ function common.idleskill(idletime, velocity)
 				return {}
 			else
 				--move
+				--TODO we need movestart and movefinish events
 				local moveevent = 
 				{
+					name = "step",
 					action = function(battle1, character1)
 						character1.pos = character1.pos + character1.team.direction * velocity
 
@@ -134,7 +287,7 @@ function common.idleskill(idletime, velocity)
 							character1.skilldata.ismoving = false
 							character1.readytime = character1.readytime or battle.time
 						end
-					end
+					end,
 				}
 				return { moveevent }
 			end
@@ -150,9 +303,51 @@ function common.waitskill(totaltime)
 	return common.idleskill(totaltime, 7.5)
 end
 
+--simple attack skill
+function common.attackskill(totalframes, attackframe, type)
+	return function(battle, character)
+		--init skill data
+		if character.skilldata == nil then
+			character.skilldata = {
+				count = 0,
+			}
+
+			--set up acceleration
+			--we know the acceleration buff at the beginning of one skill will
+			--affect the cast time of next skill, but we don't have tests with
+			--the accuracy of 1 frame
+			--TODO maybe we should do more tests
+
+			common.utils.setupacceleration(character)
+		end
+
+		local ret = {}
+
+		--damage event
+		if character.skilldata.count == attackframe then
+			local target = common.utils.selectnearestenemy(character, battle[character.team.enemy], character.character.attackrange)
+			local damage
+			if type == 1 then
+				damage = character.physicalatk
+			elseif type == 2 then
+				damage = character.magicatk
+			end
+			table.insert(ret, common.events.damage(character, target, damage, type))
+		end
+
+		--update counter
+		character.skilldata.count = character.skilldata.count + 1
+		if character.skilldata.count == totalframes then
+			character.skillid = 0 --end current skill
+		end
+
+		return ret
+	end
+end
+
 --empty characters
 
-function common.concatname(name, subname)
+function common.utils.concatname(name, subname)
 	if subname == nil then
 		return name
 	else
@@ -164,7 +359,7 @@ function common.makeemptycharacter(name, attackrange, subname)
 	return {
 		name = name,
 		subname = subname,
-		id = common.concatname(name, subname),
+		id = common.utils.concatname(name, subname),
 
 		attackrange = attackrange,
 		order = attackrange,
@@ -190,7 +385,7 @@ function common.makeemptycharacter_lima(name, attackrange, subname)
 	return {
 		name = name,
 		subname = subname,
-		id = common.concatname(name, subname),
+		id = common.utils.concatname(name, subname),
 
 		attackrange = attackrange,
 		order = attackrange,
