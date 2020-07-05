@@ -117,7 +117,11 @@ end
 
 --index=1: nearest, index=2: second nearest, etc.
 --index=-1: farthest
+--skillrange=nil: use character.attackrange
 function common.utils.selectnearestenemy(character, team, skillrange, ignoreprovocation, index)
+	if skillrange == nil then
+		skillrange = character.character.attackrange
+	end
 	if not ignoreprovocation then
 		local p = common.utils.selectprovoking(character, team, skillrange)
 		if p then return p end
@@ -229,28 +233,49 @@ end
 
 common.eventgenerators = {}
 
-function common.eventgenerators.damagenearest(type, index)
+--target selection generators
+--these generators do not create new events, but only set character.targets
+
+function common.eventgenerators.selectnearestenemy(skillrange, index)
 	return function(battle, character, results)
-		local target = common.utils.selectnearestenemy(character, battle[character.team.enemy], character.character.attackrange, false, index)
-		local damage
-		if type == 1 then
-			damage = character.physicalatk
-		elseif type == 2 then
-			damage = character.magicatk
-		end
-		table.insert(results, common.events.damage(character, target, damage, type))
+		local target = common.utils.selectnearestenemy(character, battle[character.team.enemy], skillrange, false, index)
+		character.targets = { target }
 	end
 end
 
-function common.eventgenerators.buffself(name, totalframes, startfunction, finishfunction)
+function common.eventgenerators.selectself()
 	return function(battle, character, results)
-		table.insert(results, common.events.buff(character, name, totalframes, startfunction, finishfunction))
+		character.targets = { character }
+	end
+end
+
+--actual event generators
+
+--basedamage = basedamagebase + basedamagecoefficient * atk
+function common.eventgenerators.damagetargets(type, basedamagebase, basedamagecoefficient)
+	return function(battle, character, results)
+		local basedamage
+		if type == 1 then
+			basedamage = basedamagebase + basedamagecoefficient * character.physicalatk
+		elseif type == 2 then
+			basedamage = basedamagebase + basedamagecoefficient * character.magicatk
+		end
+		for _, target in next, character.targets do
+			table.insert(results, common.events.damage(character, target, basedamage, type))
+		end
+	end
+end
+
+function common.eventgenerators.bufftargets(totalframes, name, startfunction, finishfunction)
+	return function(battle, character, results)
+		for _, target in character.targets do
+			table.insert(results, common.events.buff(target, name, totalframes, startfunction, finishfunction))
+		end
 	end
 end
 
 --TODO we need a generator to provide startfunction and finishfunction automatically
 --separate buff type, buff strength and generator
---improve buffself
 
 --implementation of empty skill (doing nothing, for testing only)
 
@@ -417,7 +442,12 @@ end
 
 --simple attack skill
 function common.attackskill(totalframes, attackframe, type)
-	return common.genericskill(totalframes, { [attackframe] = common.eventgenerators.damagenearest(type, 1) })
+	return common.genericskill(totalframes, {
+		[attackframe] = {
+			common.eventgenerators.selectnearestenemy(nil, 1),
+			common.eventgenerators.damagetargets(type, 0, 1),
+		}
+	})
 end
 
 --empty characters
