@@ -5,7 +5,7 @@ math.randomseed(os.time())
 miyako = pcr.characters.miyako.default()
 miyako.level = 93
 miyako.maxhp = 20000
-miyako.physicalatk = 3000
+miyako.physicalatk = 1
 miyako.physicaldef = 300
 miyako.dodge = 50
 makoto = pcr.characters.makoto.default()
@@ -19,13 +19,13 @@ h = function(f)
 		if ee.name == "skillstart" then
 			local skill = f.state:findcharacter(ee.team, ee.character).character.skills[ee.skillid]
 			if not skill.idle then
-				--print(f.state:clocktime("m:s+f") .. "  " .. ee.character .. "  " .. skill.name)
+				print(f.state:clocktime("m:s+f") .. "  " .. ee.character .. "  " .. skill.name)
 			end
 		elseif ee.name == "damage" then
 			local src = f.state:findcharacter(ee.sourceteam, ee.sourceid)
 			local target = f.state:findcharacter(ee.targetteam, ee.targetid)
-			local hp = math.floor(target.hp)
 			if target then
+				local hp = math.floor(target.hp)
 				if ee.invinsible then
 					print(f.state:clocktime("m:s+f") .. "  attack  " .. src.character.id .. "->" .. target.character.id ..
 						"  hp = " .. hp .. "(invinsible)")
@@ -46,5 +46,5 @@ h = function(f)
 	end
 end
 
-frame0 = pcr.utils.makebattle({ miyako }, { makoto })
+frame0 = pcr.utils.makebattle({ miyako }, { "nozomi", makoto })
 pcr.core.simulation.run(frame0, h, 3000)

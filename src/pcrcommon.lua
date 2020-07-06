@@ -130,6 +130,16 @@ function common.utils.selectnearestenemy(character, team, skillrange, ignoreprov
 		common.utils.selectfunctiondistance(character, skillrange + character.checkrange), index or 1)
 end
 
+function common.utils.chargecharacter(character, value)
+	if value > 0 then
+		value = value * (1 + character.tpboost / 100)
+	end
+	character.tp = character.tp + value
+	if character.tp > 1000 then
+		character.tp = 1000
+	end
+end
+
 --skill events
 common.events = {}
 
@@ -380,6 +390,8 @@ function common.idleskill(idletime, velocity)
 		end
 
 		if not character.skilldata.ismoving then
+			local ret = {}
+
 			--only check for starting
 			--don't move in this frame
 			--TODO need to match frame delay when enemy is killed (between hp -> 0 and ismoving -> true)
@@ -393,6 +405,9 @@ function common.idleskill(idletime, velocity)
 			if not findenemy then
 				character.skilldata.ismoving = true
 				character.checkrange = velocity
+
+				--inform event handler this character starts moving
+				table.insert(ret, { name = "startmoving" })
 			end
 			
 			--decrement counter
@@ -401,7 +416,7 @@ function common.idleskill(idletime, velocity)
 				character.skillid = 0 --end current skill
 			end
 
-			return {}
+			return ret
 		else
 			--first check (no extension)
 			local firstcheck = common.utils.anyenemyinrange(character, battle,
@@ -409,6 +424,7 @@ function common.idleskill(idletime, velocity)
 			
 			if firstcheck then
 				--don't need to move
+
 				--set up stopped state
 				character.skilldata.ismoving = false
 				character.readytime = character.readytime or battle.time
@@ -419,10 +435,11 @@ function common.idleskill(idletime, velocity)
 					character.skillid = 0 --end current skill
 				end
 
-				return {}
+				return { { name = "finishmoving" } }
 			else
+				local ret = {}
 				--move
-				--TODO we need movestart and movefinish events
+
 				local moveevent = 
 				{
 					name = "step",
@@ -437,11 +454,17 @@ function common.idleskill(idletime, velocity)
 						if secondcheck then
 							--we should stop here
 							character1.skilldata.ismoving = false
-							character1.readytime = character1.readytime or battle.time
+							character1.readytime = character1.readytime or (battle.time + 1) --the character will be ready from next frame
 						end
 					end,
 				}
-				return { moveevent }
+
+				--do second check before moving, in order to provide the finishmoving event
+				--note that this check is not used to determing whether we will actually stop
+				local secondcheckbeforemove = common.utils.anyenemyinrange(character, battle,
+					character.character.attackrange + velocity * 2)
+
+				return secondcheckbeforemove and { moveevent } or { moveevent, { name = "finishmoving" } }
 			end
 		end
 	end

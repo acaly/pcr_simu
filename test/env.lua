@@ -14,7 +14,8 @@ function pcr.utils.makecharacterstate(character)
 	if pcr.common.emptycharacters[character] == nil then
 		print("unknown character name ".. character)
 	end
-	return pcr.core.internal.characterstate(pcr.common.emptycharacters[character], character.maxhp, 0, 0, 0, nil, {}, {})
+	character = pcr.common.emptycharacters[character]
+	return pcr.core.internal.characterstate(character, character.maxhp, 0, 0, 0, nil, {}, {})
 end
 
 function pcr.utils.maketeam(characters)
