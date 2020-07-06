@@ -9,12 +9,12 @@ local pcr =
 
 function pcr.utils.makecharacterstate(character)
 	if type(character) == "table" then
-		return pcr.core.internal.characterstate(character, 10000, 0, 0, 0, nil, {}, {})
+		return pcr.core.internal.characterstate(character, character.maxhp, 0, 0, 0, nil, {}, {})
 	end
 	if pcr.common.emptycharacters[character] == nil then
 		print("unknown character name ".. character)
 	end
-	return pcr.core.internal.characterstate(pcr.common.emptycharacters[character], 10000, 0, 0, 0, nil, {}, {})
+	return pcr.core.internal.characterstate(pcr.common.emptycharacters[character], character.maxhp, 0, 0, 0, nil, {}, {})
 end
 
 function pcr.utils.maketeam(characters)

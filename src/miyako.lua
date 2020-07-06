@@ -2,7 +2,8 @@ local common = require("pcrcommon")
 
 local miyako = {}
 
-local function create(skill1level)
+local function create(skill1level, skill2level)
+	local invinsibleframes = 180 + math.floor(skill1level * 0.01 * 60)
 	return {
 		name = "miyako",
 		subname = nil,
@@ -10,6 +11,8 @@ local function create(skill1level)
 
 		attackrange = 125,
 		order = 125,
+
+		maxhp = 1000,
 		
 		skills = {
 			[1] = {
@@ -28,14 +31,20 @@ local function create(skill1level)
 				action = common.attackskill(93, 27, 1),
 			},
 			[4] = {
-				name = "wait_skill1+",
+				name = "wait_skill1",
 				idle = true,
 				action = common.waitskill(0),
 			},
 			[5] = {
-				name = "skill1+",
+				name = "skill1",
 				idle = false,
-				action = common.emptyskill(58 + 180 + math.floor(skill1level * 0.01 * 60)),
+				action = common.genericskill(30 + invinsibleframes + 28, {
+					[30] = {
+						pcr.common.eventgenerators.selectself(),
+						pcr.common.eventgenerators.bufftargetsname(invinsibleframes, "invinsible"),
+						pcr.common.eventgenerators.bufftargetsname(invinsibleframes, "ensureddodging"),
+					},
+				}),
 			},
 			[6] = {
 				name = "wait_skill2",
@@ -45,7 +54,12 @@ local function create(skill1level)
 			[7] = {
 				name = "skill2",
 				idle = false,
-				action = common.emptyskill(189),
+				action = common.genericskill(189, {
+					[30] = {
+						pcr.common.eventgenerators.selectself(),
+						pcr.common.eventgenerators.healtargets(1, 7.5 + 7.5 * skill2level, 1),
+					},
+				}),
 			},
 		},
 		initskill = { 1, 3, 2, 3, 4, 5, 2, 3, 6, 7 },
@@ -54,7 +68,7 @@ local function create(skill1level)
 end
 
 function miyako.default()
-	return create(154)
+	return create(93, 93)
 end
 
 return miyako

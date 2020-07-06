@@ -72,6 +72,7 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		character = character, --table
 
 		hp = hp, --int
+		maxhp = character.maxhp, --int
 		tp = tp, --int
 		pos = pos, --int
 		skillid = skillid, --int, 0 is no skill (simulation system will initialize the next skill in next frame)
@@ -92,6 +93,9 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		dodge = character.dodge or 0,
 		physicalcritical = character.physicalcritical or 0,
 		magiccritical = character.magiccritical or 0,
+		healboost = character.healboost or 0,
+		tpboost = character.tpboost or 0,
+		tpreduce = character.tpreduce or 0,
 		--TODO other parameters (also update clone function)
 
 		--fields that are not initialized:
@@ -109,6 +113,8 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 				core.internal.cloneskillidlist(s.skilllist),
 				core.internal.clonebufflist(s.bufflist))
 
+			ret.maxhp = s.maxhp --not sure if it's necessary
+
 			ret.level = s.level
 			ret.physicalatk = s.physicalatk
 			ret.magicatk = s.magicatk
@@ -118,6 +124,9 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 			ret.dodge = s.dodge
 			ret.physicalcritical = s.physicalcritical
 			ret.magiccritical = s.magiccritical
+			ret.healboost = s.healboost
+			ret.tpboost = s.tpboost
+			ret.tpreduce = s.tpreduce
 
 			ret.readytime = s.readytime
 			ret.checkrange = s.checkrange
@@ -326,6 +335,11 @@ function core.simulation.next(frame, options)
 	nextstate.time = nextstate.time + 1
 	local events = core.simulation.internal.updatestate(nextstate)
 	local nextframe = core.internal.frame(frame, options, nextstate, events)
+	if #nextframe.state.team1 == 0 or #nextframe.state.team2 == 0 then
+		table.insert(nextframe.eventlist, {
+			name = "end",
+		})
+	end
 	if options then
 		options(nextframe)
 	end
@@ -349,6 +363,10 @@ function core.simulation.run(frame, options, count)
 	local result = frame
 	for i = 1, count do
 		result = core.simulation.next(result, options)
+		
+		if #result.state.team1 == 0 or #result.state.team2 == 0 then
+			break
+		end
 	end
 	return result
 end

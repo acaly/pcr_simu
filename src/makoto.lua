@@ -2,7 +2,7 @@ local common = require("pcrcommon")
 
 local makoto = {}
 
-local function create()
+local function create(skill1level, skill2level)
 	return {
 		name = "makoto",
 		subname = nil,
@@ -10,6 +10,8 @@ local function create()
 
 		attackrange = 165,
 		order = 165,
+
+		maxhp = 1000,
 
 		skills = {
 			[1] = {
@@ -28,14 +30,19 @@ local function create()
 				action = common.attackskill(69, 30, 1),
 			},
 			[4] = {
-				name = "wait_skill1+",
+				name = "wait_skill1",
 				idle = true,
 				action = common.waitskill(1.125),
 			},
 			[5] = {
-				name = "skill1+",
+				name = "skill1",
 				idle = false,
-				action = common.emptyskill(121),
+				action = common.genericskill(121, {
+					[33] = {
+						common.eventgenerators.selectnearestenemy(nil, 1),
+						common.eventgenerators.damagetargets(1, 20 + 20 * skill1level, 1.6)
+					},
+				}),
 			},
 			[6] = {
 				name = "wait_skill2",
@@ -45,7 +52,12 @@ local function create()
 			[7] = {
 				name = "skill2",
 				idle = false,
-				action = common.emptyskill(75),
+				action = common.genericskill(75, {
+					[48] = {
+						common.eventgenerators.selectnearestenemy(nil, 1),
+						common.eventgenerators.bufftargetspropertyfixed(720, "physicaldefdown", "physicaldef", 0.8 + 0.8 * skill2level)
+					},
+				}),
 			},
 		},
 		initskill = { 1, 7, 4, 5 },
@@ -54,7 +66,7 @@ local function create()
 end
 
 function makoto.default()
-	return create()
+	return create(93, 93)
 end
 
 return makoto

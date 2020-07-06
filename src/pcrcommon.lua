@@ -141,10 +141,16 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 		sourceid = source.character.id,
 		targetteam = target.team.ally,
 		targetid = target.character.id,
+		damage = 0,
 	}
 	function eventtable.action(battle, character)
 		--we are not recalculating target and source character from the given battle state
 		--this should work as long as the simulator always clone a new battle state and execute skill actions there
+
+		if common.utils.checkbuffbyname(target, "invinsible") then
+			eventtable.invinsible = true
+			return
+		end
 
 		local hitprob = 1
 		if type == 1 then
@@ -152,13 +158,12 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 			if hitprob > 1 then hitprob = 1 end
 			--TODO dark debuff
 		end
+		if common.utils.checkbuffbyname(target, "ensureddodging") then
+			hitprob = 0
+		end
 		eventtable.miss = core.internal.randf(battle) >= hitprob
-		--TODO ensured dodging (miyako)
-		--TODO invinsible
 
 		if eventtable.miss then
-			eventtable.critical = false
-			eventtable.damage = 0
 			return
 		end
 
@@ -168,7 +173,12 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 		elseif type == 2 then
 			critical = critical * source.magiccritical
 		end
-		eventtable.critical = core.internal.randf(battle) < critical
+		eventtable.critical = 0
+		for i = 1, (count or 1) do
+			if core.internal.randf(battle) < critical then
+				eventtable.critical = eventtable.critical + 1
+			end
+		end
 
 		local def
 		if type == 1 then
@@ -177,12 +187,11 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 			def = target.magicdef
 		end
 		local realdamage = basedamage / (1 + math.max(def, 0) / 100)
-		if eventtable.critical then
-			realdamage = realdamage * (criticalratio or 2)
-		end
 		--TODO rounding? (according to Xier, TP is not rounded, maybe same for damage?)
 		--TODO random damage fluctuation?
+
 		realdamage = realdamage * (count or 1)
+		realdamage = realdamage + eventtable.critical * ((criticalratio or 2) - 1)
 
 		eventtable.damage = realdamage
 
@@ -194,6 +203,25 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 		--TODO hp steal (physical & magic separately?)
 		--TODO tp recovery due to damage
 		--TODO tp recovery due to killing
+	end
+	return eventtable
+end
+
+function common.events.heal(source, target, value)
+	local eventtable = {
+		name = "heal",
+		sourceteam = source.team.ally,
+		sourceid = source.character.id,
+		targetteam = target.team.ally,
+		targetid = target.character.id,
+	}
+	function eventtable.action(battle, character)
+		local realheal = value * (1 + source.healboost / 100)
+		eventtable.heal = realheal
+		target.hp = target.hp + realheal
+		if target.hp > target.maxhp then
+			target.hp = target.maxhp
+		end
 	end
 	return eventtable
 end
@@ -223,6 +251,7 @@ function common.events.buff(character, name, totalframes, startfunction, finishf
 				finishfunction(battle1, character1, bufftable1)
 				bufftable1.active = false
 			end
+			return {}
 		end
 		table.insert(character.bufflist, bufftable)
 	end
@@ -266,16 +295,45 @@ function common.eventgenerators.damagetargets(type, basedamagebase, basedamageco
 	end
 end
 
+function common.eventgenerators.healtargets(type, healbase, healcoefficient)
+	return function(battle, character, results)
+		local heal
+		if type == 1 then
+			heal = healbase + healcoefficient * character.physicalatk
+		elseif type == 2 then
+			heal = healbase + healcoefficient * character.magicatk
+		end
+		for _, target in next, character.targets do
+			table.insert(results, common.events.heal(character, target, heal))
+		end
+	end
+end
+
 function common.eventgenerators.bufftargets(totalframes, name, startfunction, finishfunction)
 	return function(battle, character, results)
-		for _, target in character.targets do
+		for _, target in next, character.targets do
 			table.insert(results, common.events.buff(target, name, totalframes, startfunction, finishfunction))
 		end
 	end
 end
 
---TODO we need a generator to provide startfunction and finishfunction automatically
---separate buff type, buff strength and generator
+--give targets a buff with a given name (no other effects)
+function common.eventgenerators.bufftargetsname(totalframes, name)
+	local function startfunction(_, _, _) end
+	local function finishfunction(_, _, _) end
+	return common.eventgenerators.bufftargets(totalframes, name, startfunction, finishfunction)
+end
+
+--give targets a buff that changes a property with a given value
+function common.eventgenerators.bufftargetspropertyfixed(totalframes, name, propertyname, value)
+	local function startfunction(_, character, _)
+		character[propertyname] = character[propertyname] + value
+	end
+	local function finishfunction(_, character, _)
+		character[propertyname] = character[propertyname] - value
+	end
+	return common.eventgenerators.bufftargets(totalframes, name, startfunction, finishfunction)
+end
 
 --implementation of empty skill (doing nothing, for testing only)
 
@@ -469,6 +527,8 @@ function common.makeemptycharacter(name, attackrange, subname)
 		attackrange = attackrange,
 		order = attackrange,
 
+		maxhp = 1000,
+
 		skills = {
 			[1] = {
 				name = "enter",
@@ -494,6 +554,8 @@ function common.makeemptycharacter_lima(name, attackrange, subname)
 
 		attackrange = attackrange,
 		order = attackrange,
+
+		maxhp = 1000,
 
 		skills = {
 			[1] = {
