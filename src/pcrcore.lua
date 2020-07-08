@@ -96,6 +96,7 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 		healboost = character.healboost or 0,
 		tpboost = character.tpboost or 0,
 		tpreduce = character.tpreduce or 0,
+		hpsteal = character.hpsteal or 0,
 		--TODO other parameters (also update clone function)
 
 		--fields that are not initialized:
@@ -127,6 +128,7 @@ function core.internal.characterstate(character, hp, tp, pos, skillid, skilldata
 			ret.healboost = s.healboost
 			ret.tpboost = s.tpboost
 			ret.tpreduce = s.tpreduce
+			ret.hpsteal = s.hpsteal
 
 			ret.readytime = s.readytime
 			ret.checkrange = s.checkrange
@@ -276,10 +278,11 @@ function core.simulation.internal.updatecharacter(character, battle)
 			for _, ee in next, buffevents do table.insert(ret, ee) end
 		end
 
-		if buff.disableupdate then noskillupdate = true end
 		if not buff.active then
 			table.remove(character.bufflist, index)
 			index = index - 1
+		elseif buff.disableupdate then
+			noskillupdate = true
 		end
 
 		index = index + 1

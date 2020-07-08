@@ -24,9 +24,10 @@ end
 function common.utils.checkbuffbyname(character, name)
 	for _, buff in next, character.bufflist do
 		if buff.name == name then
-			return true
+			return buff
 		end
 	end
+	return nil
 end
 
 function common.utils.selectprovoking(character, team, skillrange)
@@ -204,15 +205,27 @@ function common.events.damage(source, target, basedamage, type, count, criticalr
 		realdamage = realdamage + eventtable.critical * ((criticalratio or 2) - 1)
 
 		eventtable.damage = realdamage
-
+		
+		local oldhp = target.hp
 		if target.hp > realdamage then
 			target.hp = target.hp - realdamage
 		else
 			target.hp = 0
 		end
-		--TODO hp steal (physical & magic separately?)
-		--TODO tp recovery due to damage
-		--TODO tp recovery due to killing
+		if oldhp > 0 and target.hp == 0 then
+			common.utils.chargecharacter(source, 200)
+		end
+		if oldhp > target.hp then
+			common.utils.chargecharacter(target, (target.hp - oldhp) * 500)
+		end
+
+		local hpsteal = source.hpsteal
+		--TODO akari's UB can change hpsteal
+		local stealamount = realdamage * hpsteal / (100 + target.level + hpsteal)
+		source.hp = source.hp + stealamount
+		if source.hp > source.maxhp then
+			source.hp = source.maxhp
+		end
 	end
 	return eventtable
 end
@@ -237,35 +250,69 @@ function common.events.heal(source, target, value)
 end
 
 --startfunction and finishfunction: function(battle, character, bufftable)
+--mergefunction is similar but it's called on an existing bufftable with the same name
 --note that buff starts from the next frame, so be careful about the timing when applying buffs
-function common.events.buff(character, name, totalframes, startfunction, finishfunction)
+function common.events.buff(character, name, totalframes, startfunction, finishfunction, mergefunction)
 	local eventtable = {
 		name = "buff",
 		time = totalframes,
 		targetteam = character.team.ally,
 		targetid = character.character.id,
 	}
-	function eventtable.action(_, _)
+	function eventtable.action(battle0, _)
+		local oldbufftable = common.utils.checkbuffbyname(character, name)
+		if oldbufftable and mergefunction then
+			mergefunction(battle0, character, oldbufftable)
+			return {}
+		end
 		local bufftable = {
 			name = name,
 			active = true,
-			totalframes = totalframes,
-			frames = 0,
+			remaining = totalframes,
 		}
+		--use a separate local (closure) variable to eliminate effects of merging
+		local startfunctioncalled = false
+
 		function bufftable.beforeupdate(battle1, character1, bufftable1)
-			if bufftable1.frames == 0 then
-				startfunction(battle1, character1, bufftable1)
+			local ret = nil
+
+			if not startfunctioncalled then
+				startfunctioncalled = true
+				ret = ret or startfunction(battle1, character1, bufftable1)
 			end
-			bufftable1.frames = bufftable1.frames + 1
-			if bufftable1.frames == totalframes then
-				finishfunction(battle1, character1, bufftable1)
+
+			--note that we check frame count before decrementing it
+			--this is because as soon as we set active to false, this buff is considered removed
+			--therefore the last frame should not be included into the buff time
+			if bufftable1.remaining == 0 then
+				--assume startfunction and finishfunction cannot be called in the same frame (totalframes > 0)
+				ret = ret or finishfunction(battle1, character1, bufftable1)
 				bufftable1.active = false
 			end
-			return {}
+			bufftable1.remaining = bufftable1.remaining - 1
+
+			return ret or {}
 		end
 		table.insert(character.bufflist, bufftable)
 	end
 	return eventtable
+end
+
+function common.events.delay(character, totalframes)
+	--let's ensure the character is not in another skill
+	local skill = character.character.skills[character.skillid]
+	if skill ~= nill and not skill.idle then
+		error("cannot delay character in skill")
+	end
+
+	local function startfunction(_, _, bufftable)
+		bufftable.disableupdate = true
+	end
+	local function finishfunction(_, _, _) end
+	local function mergefunction(_, _, bufftable)
+		bufftable.remaining = math.max(bufftable.remaining, totalframes)
+	end
+	return common.events.buff(character, "delay", totalframes, startfunction, finishfunction, mergefunction)
 end
 
 --event generators (used in generic skill)
@@ -319,10 +366,10 @@ function common.eventgenerators.healtargets(type, healbase, healcoefficient)
 	end
 end
 
-function common.eventgenerators.bufftargets(totalframes, name, startfunction, finishfunction)
+function common.eventgenerators.bufftargets(totalframes, name, startfunction, finishfunction, mergefunction)
 	return function(battle, character, results)
 		for _, target in next, character.targets do
-			table.insert(results, common.events.buff(target, name, totalframes, startfunction, finishfunction))
+			table.insert(results, common.events.buff(target, name, totalframes, startfunction, finishfunction, mergefunction))
 		end
 	end
 end
@@ -343,6 +390,23 @@ function common.eventgenerators.bufftargetspropertyfixed(totalframes, name, prop
 		character[propertyname] = character[propertyname] - value
 	end
 	return common.eventgenerators.bufftargets(totalframes, name, startfunction, finishfunction)
+end
+
+--stun (as a debuff)
+function common.eventgenerators.bufftargetsstun(totalframes)
+	local function startfunction(_, _, bufftable)
+		bufftable.disableupdate = true
+	end
+	local function endfunction(_, character, bufftable)
+		return {
+			--TODO confirm this number
+			common.events.delay(character, 23)
+		}
+	end
+	local function mergefunction(_, _, bufftable)
+		bufftable.remaining = math.max(bufftable.remaining, totalframes)
+	end
+	return common.eventgenerators.bufftargets(totalframes, "stun", startfunction, finishfunction, mergefunction)
 end
 
 --implementation of empty skill (doing nothing, for testing only)
@@ -496,6 +560,9 @@ function common.genericskill(totalframes, eventgenerators)
 			--TODO maybe we should do more tests
 
 			common.utils.setupacceleration(character)
+
+			--add tp
+			common.utils.chargecharacter(character, 90)
 		end
 
 		local ret = {}
