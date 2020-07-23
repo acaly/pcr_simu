@@ -319,6 +319,18 @@ end
 
 common.eventgenerators = {}
 
+function common.utils.executeeventgenerators(battle, character, results, generators)
+	if generators then
+		if type(generators) == "function" then
+			generators(battle, character, results)
+		elseif type(generators) == "table" then
+			for _, func in next, generators do
+				func(battle, character, results)
+			end
+		end
+	end
+end
+
 --target selection generators
 --these generators do not create new events, but only set character.targets
 
@@ -566,17 +578,7 @@ function common.genericskill(totalframes, eventgenerators)
 		end
 
 		local ret = {}
-
-		local g = eventgenerators[character.skilldata.count]
-		if g then
-			if type(g) == "function" then
-				g(battle, character, ret)
-			elseif type(g) == "table" then
-				for _, func in next, g do
-					func(battle, character, ret)
-				end
-			end
-		end
+		common.utils.executeeventgenerators(battle, character, ret, eventgenerators[character.skilldata.count])
 
 		--update counter
 		character.skilldata.count = character.skilldata.count + 1
