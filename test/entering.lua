@@ -147,7 +147,7 @@ do
 	local f = simulate({ "lima", "yukari", "mitsuki", "rino", "yuki" },
 		{ "nozomi", "makoto", "tamaki", "maho", "kyouka" })
 	local distance = math.abs(findinteam(f.state.team1, "rino").pos - findinteam(f.state.team2, "kyouka").pos)
-	check("rino attacking", distance > 1150 + 100 + 12)
+	check("rino attacking", distance > 1150 + 100)
 
 	local team = teamtime(f)
 	check("yukari time", team.team1.yukari == 0)
@@ -160,7 +160,7 @@ do
 	local f = simulate({ "nozomi", "makoto", "tamaki", "maho", "kyouka" },
 		{ "lima", "yukari", "mitsuki", "rino", "yuki" })
 	local distance = math.abs(findinteam(f.state.team2, "rino").pos - findinteam(f.state.team1, "kyouka").pos)
-	check("rino defending", distance < 1150 + 100 + 12)
+	check("rino defending", distance < 1150 + 100)
 
 	local team = teamtime(f)
 	check("yukari time", team.team2.yukari == 0)

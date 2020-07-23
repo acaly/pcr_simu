@@ -472,10 +472,9 @@ function common.idleskill(idletime, velocity)
 			--don't move in this frame
 			--TODO need to match frame delay when enemy is killed (between hp -> 0 and ismoving -> true)
 
-			--start check (with extension of last move)
-			local checkrange = character.checkrange or 0
+			--start check (without extension of last move)
 			local findenemy = common.utils.anyenemyinrange(character, battle,
-				character.character.attackrange + checkrange)
+				character.character.attackrange)
 
 			--set up moving state
 			if not findenemy then
@@ -494,54 +493,35 @@ function common.idleskill(idletime, velocity)
 
 			return ret
 		else
-			--first check (no extension)
-			local firstcheck = common.utils.anyenemyinrange(character, battle,
-				character.character.attackrange)
-			
-			if firstcheck then
-				--don't need to move
+			local ret = {}
+			--move
 
-				--set up stopped state
-				character.skilldata.ismoving = false
-				character.readytime = character.readytime or battle.time
+			local moveevent = 
+			{
+				name = "step",
+				velocity = velocity,
+				action = function(battle1, character1)
+					character1.pos = character1.pos + character1.team.direction * velocity
 
-				--decrement counter
-				character.skilldata.remaining = character.skilldata.remaining - 1
-				if character.skilldata.remaining == 0 then
-					character.skillid = 0 --end current skill
-				end
+					--second check (without extension)
+					local secondcheck = common.utils.anyenemyinrange(character1, battle1,
+						character1.character.attackrange)
 
-				return { { name = "finishmoving" } }
-			else
-				local ret = {}
-				--move
+					--TODO this check should be merged with the update of target list, which is done no matter whether we're moving
+					if secondcheck then
+						--we should stop here
+						character1.skilldata.ismoving = false
+						character1.readytime = character1.readytime or (battle.time + 1) --the character will be ready from next frame
+					end
+				end,
+			}
 
-				local moveevent = 
-				{
-					name = "step",
-					velocity = velocity,
-					action = function(battle1, character1)
-						character1.pos = character1.pos + character1.team.direction * velocity
+			--do second check before moving, in order to provide the finishmoving event
+			--note that this check is not used to determing whether we will actually stop
+			local secondcheckbeforemove = common.utils.anyenemyinrange(character, battle,
+				character.character.attackrange + velocity * 2)
 
-						--second check (with extension)
-						local secondcheck = common.utils.anyenemyinrange(character1, battle1,
-							character1.character.attackrange + character1.checkrange)
-
-						if secondcheck then
-							--we should stop here
-							character1.skilldata.ismoving = false
-							character1.readytime = character1.readytime or (battle.time + 1) --the character will be ready from next frame
-						end
-					end,
-				}
-
-				--do second check before moving, in order to provide the finishmoving event
-				--note that this check is not used to determing whether we will actually stop
-				local secondcheckbeforemove = common.utils.anyenemyinrange(character, battle,
-					character.character.attackrange + velocity * 2)
-
-				return secondcheckbeforemove and { moveevent } or { moveevent, { name = "finishmoving" } }
-			end
+			return secondcheckbeforemove and { moveevent } or { moveevent, { name = "finishmoving" } }
 		end
 	end
 end

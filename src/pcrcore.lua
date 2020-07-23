@@ -231,7 +231,7 @@ function core.simulation.firstframe(s)
 		ch.pos = -660 - 200 * (index - 1)
 	end
 	for index, ch in next, s.team2 do
-		ch.pos = 660 + 200 * (index - 1)
+		ch.pos = 660 + 200 * (index - 1) - 12 --TODO enemy moves 1 frame before
 	end
 
 	--set initial skills
